@@ -16,15 +16,18 @@ import numpy as np
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
 
 
-def dataset_filename_prefix(project_name: str, generation_date: str) -> str:
-    """Return a filesystem-safe ``project_date`` prefix for generated files."""
-    safe_project_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", project_name)
-    safe_project_name = re.sub(r"\s+", "_", safe_project_name).strip(" ._") or "project"
-    safe_project_name = re.sub(r"_+", "_", safe_project_name)
-    safe_generation_date = re.sub(r"\D", "", generation_date)
-    if len(safe_generation_date) != 8:
-        raise ValueError("Generation date must use YYYYMMDD format")
-    return f"{safe_project_name[:80]}_{safe_generation_date}"
+def safe_filename_component(value: str, fallback: str = "project") -> str:
+    """Return a readable filesystem-safe component for generated filenames."""
+    safe_value = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", value)
+    safe_value = re.sub(r"\s+", "_", safe_value).strip(" ._") or fallback
+    return re.sub(r"_+", "_", safe_value)[:80]
+
+
+def dataset_filename_prefix(project_name: str, generation_batch: str) -> str:
+    """Return a filesystem-safe ``project_date_batch`` prefix for generated files."""
+    safe_project_name = safe_filename_component(project_name)
+    safe_generation_batch = safe_filename_component(generation_batch, "batch")
+    return f"{safe_project_name}_{safe_generation_batch}"
 
 
 def write_jpeg(path: Path, image: np.ndarray, quality: int) -> None:
@@ -320,8 +323,16 @@ def texture_masks(
     output_dir: Path,
     random_crop: bool = True,
     max_side_pixels: int = 1000,
+    project_name: str = "project",
 ) -> list[Path]:
-    return texture_mask_files(list_image_files(mask_dir), texture_path, output_dir, random_crop, max_side_pixels)
+    return texture_mask_files(
+        list_image_files(mask_dir),
+        texture_path,
+        output_dir,
+        random_crop,
+        max_side_pixels,
+        project_name,
+    )
 
 
 def texture_mask_files(
@@ -330,6 +341,7 @@ def texture_mask_files(
     output_dir: Path,
     random_crop: bool = True,
     max_side_pixels: int = 1000,
+    project_name: str = "project",
 ) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     texture = cv2.imread(str(texture_path), cv2.IMREAD_COLOR)
@@ -364,7 +376,7 @@ def texture_mask_files(
             scale = max_side_pixels / max_side
             rgba = cv2.resize(rgba, (max(1, int(w_mask * scale)), max(1, int(h_mask * scale))), interpolation=cv2.INTER_AREA)
 
-        out = output_dir / f"part_{idx:04d}.png"
+        out = output_dir / f"{safe_filename_component(project_name)}_part_{idx:04d}.png"
         cv2.imwrite(str(out), rgba)
         saved.append(out)
     return saved

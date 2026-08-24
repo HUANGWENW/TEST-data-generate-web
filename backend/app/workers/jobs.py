@@ -127,6 +127,9 @@ def run_task(task_id: str):
             update_task(db, task, status="succeeded", progress=100, message=f"提取 {len(saved)} 个 mask", result=result, finished_at=utcnow())
 
         elif task.task_type == "masks_to_parts":
+            project = db.get(Project, task.project_id)
+            if project is None:
+                raise ValueError(f"Project not found: {task.project_id}")
             texture_asset = get_asset(db, params["texture_asset_id"])
             output_dir = resolve_project_path(task.project_id, "parts", task.id)
             mask_asset_ids = params.get("mask_asset_ids") or []
@@ -141,6 +144,7 @@ def run_task(task_id: str):
                     output_dir,
                     random_crop=bool(params.get("random_crop", True)),
                     max_side_pixels=int(params.get("max_side_pixels", 1000)),
+                    project_name=project.name,
                 )
             else:
                 mask_dir = Path(params["mask_dir"]) if params.get("mask_dir") else latest_image_dir(root / "masks")
@@ -150,6 +154,7 @@ def run_task(task_id: str):
                     output_dir,
                     random_crop=bool(params.get("random_crop", True)),
                     max_side_pixels=int(params.get("max_side_pixels", 1000)),
+                    project_name=project.name,
                 )
             for path in saved:
                 add_asset(db, task.project_id, "part", path, meta={"task_id": task.id, "texture_asset_id": texture_asset.id, "selected_mask_count": len(mask_asset_ids)})
@@ -203,7 +208,8 @@ def run_task(task_id: str):
                 class_name=str(params.get("class_name", "steel_part")),
                 jpeg_quality=int(params.get("jpeg_quality", 95)),
                 project_name=project.name,
-                generation_date=(task.created_at or utcnow()).astimezone(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d"),
+                generation_date=(task.created_at or utcnow()).astimezone(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S")
+                + f"_{task.id[:8]}",
                 progress_callback=report_progress,
             )
             preview_path = result.get("first_image_path")
