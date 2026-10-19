@@ -87,6 +87,7 @@ def run_task(task_id: str):
                 output_dir,
                 min_area=int(params.get("min_area", 5000)),
                 dilation_size=int(params.get("dilation_size", 3)),
+                edge_polarity=str(params.get("edge_polarity", "auto")),
             )
             for path in saved:
                 add_asset(db, task.project_id, "mask", path, meta={"task_id": task.id, "source_asset_id": input_asset.id})
@@ -143,7 +144,7 @@ def run_task(task_id: str):
                     Path(texture_asset.file_path),
                     output_dir,
                     random_crop=bool(params.get("random_crop", True)),
-                    max_side_pixels=int(params.get("max_side_pixels", 1000)),
+                    max_side_pixels=int(params.get("max_side_pixels", 0)),
                     project_name=project.name,
                 )
             else:
@@ -153,7 +154,7 @@ def run_task(task_id: str):
                     Path(texture_asset.file_path),
                     output_dir,
                     random_crop=bool(params.get("random_crop", True)),
-                    max_side_pixels=int(params.get("max_side_pixels", 1000)),
+                    max_side_pixels=int(params.get("max_side_pixels", 0)),
                     project_name=project.name,
                 )
             for path in saved:

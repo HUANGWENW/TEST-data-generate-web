@@ -16,6 +16,23 @@ import numpy as np
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
 
 
+def read_image(path: Path, flags: int) -> np.ndarray:
+    """Read through a buffer, including Unicode filenames on Windows."""
+    image = cv2.imdecode(np.fromfile(str(path), dtype=np.uint8), flags)
+    if image is None:
+        raise ValueError(f"Cannot read image: {path}")
+    return image
+
+
+def write_png(path: Path, image: np.ndarray) -> None:
+    # Lossless compression reduces large tiled texture PNGs without changing
+    # dimensions or alpha (unlike the former implicit 1000px downsampling).
+    encoded_ok, encoded = cv2.imencode(".png", image, [cv2.IMWRITE_PNG_COMPRESSION, 3])
+    if not encoded_ok:
+        raise ValueError(f"Cannot encode PNG: {path}")
+    encoded.tofile(str(path))
+
+
 def safe_filename_component(value: str, fallback: str = "project") -> str:
     """Return a readable filesystem-safe component for generated filenames."""
     safe_value = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", value)
@@ -217,41 +234,83 @@ def extract_gen_masks(
     return saved
 
 
-def extract_edge_masks(edge_image_path: Path, output_dir: Path, min_area: int = 5000, dilation_size: int = 3) -> list[Path]:
+def extract_edge_masks(
+    edge_image_path: Path,
+    output_dir: Path,
+    min_area: int = 5000,
+    dilation_size: int = 3,
+    edge_polarity: str = "auto",
+) -> list[Path]:
+    """Fill closed cut outlines; nested cut loops alternate material and holes.
+
+    ``dilation_size`` is retained for existing clients, but now controls gap
+    closing (dilation followed by erosion), not permanent edge thickening.
+    Open strokes are ignored. Outputs use source pixels, cropped with 5px
+    padding clipped to the source canvas; they are never rescaled.
+    """
+    if min_area < 1:
+        raise ValueError("min_area must be positive")
+    if dilation_size < 1 or dilation_size > 21 or dilation_size % 2 == 0:
+        raise ValueError("Gap repair size must be an odd number between 1 and 21")
+    if edge_polarity not in {"auto", "white", "black"}:
+        raise ValueError("edge_polarity must be auto, white or black")
+    edge_img = read_image(edge_image_path, cv2.IMREAD_GRAYSCALE)
+    if int(edge_img.min()) == int(edge_img.max()):
+        raise ValueError("No edges found in the input image")
+    _, edges = cv2.threshold(edge_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # Thin cut lines normally occupy less of the canvas than the background.
+    if edge_polarity == "black" or (edge_polarity == "auto" and cv2.countNonZero(edges) > edges.size / 2):
+        edges = cv2.bitwise_not(edges)
+    if dilation_size > 1:
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (dilation_size, dilation_size))
+        # Padding prevents morphology's default border handling from joining
+        # nearby open strokes through the canvas boundary.
+        edges = cv2.copyMakeBorder(edges, dilation_size, dilation_size, dilation_size, dilation_size, cv2.BORDER_CONSTANT, value=0)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+        edges = edges[dilation_size:-dilation_size, dilation_size:-dilation_size]
+
+    contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    if hierarchy is None:
+        raise ValueError("No closed outlines found; check edge polarity and gaps")
+    tree = hierarchy[0]
+    depths = []
+    for entry in tree:
+        depth, parent = 0, int(entry[3])
+        while parent != -1:
+            depth += 1
+            parent = int(tree[parent][3])
+        depths.append(depth)
+
     output_dir.mkdir(parents=True, exist_ok=True)
-    edge_img = cv2.imread(str(edge_image_path), cv2.IMREAD_GRAYSCALE)
-    if edge_img is None:
-        raise ValueError(f"Cannot read edge image: {edge_image_path}")
-
-    h, w = edge_img.shape
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilation_size, dilation_size))
-    dilated_edge = cv2.dilate(edge_img, kernel, iterations=1)
-    inverted = cv2.bitwise_not(dilated_edge)
-    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(inverted, connectivity=8)
-
+    h, w = edges.shape
     saved: list[Path] = []
-    base_name = edge_image_path.stem
-    for label in range(1, num_labels):
-        area = int(stats[label, cv2.CC_STAT_AREA])
-        if area < min_area:
+    for index, contour in enumerate(contours):
+        # Each closed stroke has an outside and inside contour. Material
+        # boundaries are at depths 0, 4, ...; holes at depths 2, 6, ... .
+        # Requiring an inside contour avoids filling an arbitrary open stroke.
+        if depths[index] % 4 != 0 or tree[index][2] == -1:
             continue
-        x = int(stats[label, cv2.CC_STAT_LEFT])
-        y = int(stats[label, cv2.CC_STAT_TOP])
-        bw = int(stats[label, cv2.CC_STAT_WIDTH])
-        bh = int(stats[label, cv2.CC_STAT_HEIGHT])
-        if x <= 1 or y <= 1 or x + bw >= w - 1 or y + bh >= h - 1:
+        x, y, bw, bh = cv2.boundingRect(contour)
+        x1, y1 = max(0, x - 5), max(0, y - 5)
+        x2, y2 = min(w, x + bw + 5), min(h, y + bh + 5)
+        mask = np.zeros((y2 - y1, x2 - x1), dtype=np.uint8)
+        cv2.drawContours(mask, contours, index, 255, cv2.FILLED, offset=(-x1, -y1))
+        interior = int(tree[index][2])
+        while interior != -1:
+            hole = int(tree[interior][2])
+            while hole != -1:
+                if tree[hole][2] != -1:
+                    cv2.drawContours(mask, contours, hole, 0, cv2.FILLED, offset=(-x1, -y1))
+                hole = int(tree[hole][0])
+            interior = int(tree[interior][0])
+        # Filter material components only. Small holes must stay transparent.
+        if cv2.countNonZero(mask) < min_area:
             continue
-
-        mask = (labels == label).astype(np.uint8) * 255
-        margin = 5
-        x1 = max(0, x - margin)
-        y1 = max(0, y - margin)
-        x2 = min(w, x + bw + margin)
-        y2 = min(h, y + bh + margin)
-        cropped = mask[y1:y2, x1:x2]
-        out = output_dir / f"{base_name}_part_{len(saved):04d}.png"
-        cv2.imwrite(str(out), cropped)
+        out = output_dir / f"{edge_image_path.stem}_part_{len(saved):04d}.png"
+        write_png(out, mask)
         saved.append(out)
+    if not saved:
+        raise ValueError("No closed parts meet min_area; check edge polarity, gaps and minimum area")
     return saved
 
 
@@ -322,7 +381,7 @@ def texture_masks(
     texture_path: Path,
     output_dir: Path,
     random_crop: bool = True,
-    max_side_pixels: int = 1000,
+    max_side_pixels: int = 0,
     project_name: str = "project",
 ) -> list[Path]:
     return texture_mask_files(
@@ -340,44 +399,41 @@ def texture_mask_files(
     texture_path: Path,
     output_dir: Path,
     random_crop: bool = True,
-    max_side_pixels: int = 1000,
+    max_side_pixels: int = 0,
     project_name: str = "project",
 ) -> list[Path]:
+    """Apply texture at the mask's resolution; zero disables downsampling."""
+    if max_side_pixels < 0:
+        raise ValueError("max_side_pixels must be zero (original size) or positive")
     output_dir.mkdir(parents=True, exist_ok=True)
-    texture = cv2.imread(str(texture_path), cv2.IMREAD_COLOR)
-    if texture is None:
-        raise ValueError(f"Cannot read texture image: {texture_path}")
+    texture = read_image(texture_path, cv2.IMREAD_COLOR)
 
     saved: list[Path] = []
     for idx, mask_path in enumerate(mask_files, start=1):
-        mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
-        if mask is None:
-            continue
+        mask = read_image(mask_path, cv2.IMREAD_GRAYSCALE)
         h_mask, w_mask = mask.shape
-        tex = texture
-        h_tex, w_tex = tex.shape[:2]
-        if h_tex < h_mask or w_tex < w_mask:
-            tile_h = h_mask // h_tex + 2
-            tile_w = w_mask // w_tex + 2
-            tex = np.tile(tex, (tile_h, tile_w, 1))
-            h_tex, w_tex = tex.shape[:2]
+        h_tex, w_tex = texture.shape[:2]
 
         if random_crop:
-            x0 = random.randint(0, max(0, w_tex - w_mask))
-            y0 = random.randint(0, max(0, h_tex - h_mask))
-            crop = tex[y0:y0 + h_mask, x0:x0 + w_mask]
+            x0 = random.randint(0, w_tex - w_mask) if w_tex >= w_mask else random.randrange(w_tex)
+            y0 = random.randint(0, h_tex - h_mask) if h_tex >= h_mask else random.randrange(h_tex)
+            # Allocate only the required crop, rather than a much larger tiled
+            # texture for long parts such as the 11992px Wuxue inputs.
+            ys = (np.arange(h_mask) + y0) % h_tex
+            xs = (np.arange(w_mask) + x0) % w_tex
+            crop = texture[ys[:, None], xs[None, :]]
         else:
-            crop = cv2.resize(tex, (w_mask, h_mask), interpolation=cv2.INTER_LINEAR)
+            crop = cv2.resize(texture, (w_mask, h_mask), interpolation=cv2.INTER_LINEAR)
 
         b, g, r = cv2.split(crop)
         rgba = cv2.merge([b, g, r, mask])
         max_side = max(rgba.shape[:2])
         if max_side_pixels and max_side > max_side_pixels:
             scale = max_side_pixels / max_side
-            rgba = cv2.resize(rgba, (max(1, int(w_mask * scale)), max(1, int(h_mask * scale))), interpolation=cv2.INTER_AREA)
+            rgba = cv2.resize(rgba, (max(1, round(w_mask * scale)), max(1, round(h_mask * scale))), interpolation=cv2.INTER_AREA)
 
         out = output_dir / f"{safe_filename_component(project_name)}_part_{idx:04d}.png"
-        cv2.imwrite(str(out), rgba)
+        write_png(out, rgba)
         saved.append(out)
     return saved
 
@@ -393,6 +449,8 @@ def ensure_rgba(image: np.ndarray) -> np.ndarray:
 
 def rotate_image_with_alpha(img: np.ndarray, angle: float) -> np.ndarray:
     img = ensure_rgba(img)
+    if angle % 360 == 0:
+        return img
     h, w = img.shape[:2]
     center = (w // 2, h // 2)
     matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
@@ -518,14 +576,18 @@ def prepare_part(source: Path | np.ndarray, angle: float, scale: float, max_w: i
             return None
     else:
         img = source
+    if scale <= 0 or max_w < 1 or max_h < 1:
+        raise ValueError("Part scale and placement dimensions must be positive")
     img = rotate_image_with_alpha(img, angle)
-    if scale != 1.0:
-        h, w = img.shape[:2]
-        img = cv2.resize(img, (max(1, int(w * scale)), max(1, int(h * scale))), interpolation=cv2.INTER_AREA)
     h, w = img.shape[:2]
-    if w > max_w or h > max_h:
-        limit = min(max_w / w, max_h / h) * 0.95
-        img = cv2.resize(img, (max(1, int(w * limit)), max(1, int(h * limit))), interpolation=cv2.INTER_AREA)
+    target_w, target_h = max(1, int(w * scale)), max(1, int(h * scale))
+    if target_w > max_w or target_h > max_h:
+        limit = min(max_w / target_w, max_h / target_h) * 0.95
+        target_w, target_h = max(1, int(target_w * limit)), max(1, int(target_h * limit))
+    # Compute the fitted size before allocating. A 11992px part at scale 10
+    # must not become a 119920px intermediate merely to fit a 3648px canvas.
+    if (target_w, target_h) != (w, h):
+        img = cv2.resize(img, (target_w, target_h), interpolation=cv2.INTER_AREA)
     return img
 
 

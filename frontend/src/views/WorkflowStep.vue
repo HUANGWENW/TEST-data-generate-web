@@ -28,7 +28,9 @@
           <el-form-item label="面积/长宽比"><div class="inline-range"><el-input-number v-model="maskForm.min_area_mm2" :min="0" :step="100" /><span>和</span><el-input-number v-model="maskForm.max_aspect_ratio" :min="1" /></div></el-form-item>
         </template>
         <template v-else>
-          <el-form-item label="膨胀核"><div class="field-with-note"><el-input-number v-model="maskForm.dilation_size" :min="1" :max="21" :step="2" /><span class="hint">用于加粗边缘、连接细小断点；值越大越容易闭合轮廓，也可能吞并窄缝或小孔。</span></div></el-form-item>
+          <el-form-item label="边缘颜色"><el-select v-model="maskForm.edge_polarity"><el-option label="自动识别" value="auto" /><el-option label="白线 / 黑底" value="white" /><el-option label="黑线 / 白底" value="black" /></el-select></el-form-item>
+          <el-form-item label="最小面积"><div class="field-with-note"><el-input-number v-model="maskForm.min_area" :min="1" :step="100" /><span class="hint">单位 px²；过滤小零件，内孔会保留。</span></div></el-form-item>
+          <el-form-item label="断点修补核"><div class="field-with-note"><el-input-number v-model="maskForm.dilation_size" :min="1" :max="21" :step="2" :precision="0" /><span class="hint">1 表示不修补；较大值可连接小断点，也可能合并相邻轮廓。闭合轮廓按原图像素填充，内孔保持透明。</span></div></el-form-item>
         </template>
         <el-form-item><el-button type="primary" :icon="VideoPlay" @click="submitMaskTask">提交 Mask 提取</el-button></el-form-item>
       </el-form>
@@ -44,6 +46,7 @@
       <el-form label-width="110px" class="task-form">
         <el-form-item label="纹理图"><el-select v-model="partForm.texture_asset_id" placeholder="选择纹理图" filterable><el-option v-for="item in textureAssets" :key="item.id" :label="item.original_name" :value="item.id" /></el-select></el-form-item>
         <el-form-item label="随机裁剪"><el-switch v-model="partForm.random_crop" /></el-form-item>
+        <el-form-item label="输出最长边"><div class="field-with-note"><el-input-number v-model="partForm.max_side_pixels" :min="0" :step="500" :precision="0" /><span class="hint">0：保留输入 Mask 的原始尺寸和透明通道。正数：按此像素上限等比缩小，不放大。纹理不足时随机裁剪模式会平铺补足。</span></div></el-form-item>
         <el-form-item><el-button type="primary" :icon="VideoPlay" @click="submitPartTask">生成透明零件</el-button></el-form-item>
       </el-form>
       <AssetReview title="透明零件验收" description="生成完成后，在这里筛选适合参与合成的透明零件。" :assets="partAssets" :selected-ids="selectedPartIds" checkerboard @toggle="togglePart" @select-all="selectAllParts" @clear="clearSelectedParts" />
@@ -207,8 +210,8 @@ const stepTitle = computed(() => ['提取 Mask', '生成透明零件', '合成�
 const stepHint = computed(() => ['提取并验收可用轮廓', '从已有 Mask 开始也可以', '从已有透明零件开始也可以'][currentStep.value - 1])
 const inputAssets = computed(() => assets.value.filter(a => a.asset_type === 'input')); const maskAssets = computed(() => assets.value.filter(a => a.asset_type === 'mask')); const textureAssets = computed(() => assets.value.filter(a => a.asset_type === 'texture')); const partAssets = computed(() => assets.value.filter(a => a.asset_type === 'part')); const backgroundAssets = computed(() => assets.value.filter(a => a.asset_type === 'background'))
 const selectedBackground = computed(() => backgroundAssets.value.find(a => a.id === datasetForm.background_asset_id))
-const maskForm = reactive({ asset_id: '', mode: 'extract_edge_masks', dilation_size: 3, scale: 5, padding: 20, min_width_mm: 10, min_height_mm: 10, min_area_mm2: 100, max_aspect_ratio: 20 })
-const partForm = reactive({ texture_asset_id: '', random_crop: true })
+const maskForm = reactive({ asset_id: '', mode: 'extract_edge_masks', dilation_size: 3, edge_polarity: 'auto', min_area: 5000, scale: 5, padding: 20, min_width_mm: 10, min_height_mm: 10, min_area_mm2: 100, max_aspect_ratio: 20 })
+const partForm = reactive({ texture_asset_id: '', random_crop: true, max_side_pixels: 0 })
 const datasetForm = reactive({ background_asset_id: '', label_format: 'yolo_hbb', layout_mode: 'random', num_images: 20, min_parts: 2, max_parts: 8, angle_min: 0, angle_max: 90, scale_min: 0.6, scale_max: 1, margin_top: 100, margin_bottom: 150, margin_left: 0, margin_right: 0, jpeg_quality: 95, class_id: 0, class_name: 'steel_part' })
 const placementPreviewUrl = computed(() => selectedBackground.value?.meta?.url || '')
 const backgroundWidth = computed(() => Math.max(1, Number(selectedBackground.value?.meta?.width) || 1000))
@@ -278,7 +281,13 @@ function toggleMask({ id, checked }) { maskTouched.value = true; selectedMaskIds
 function selectAllMasks() { maskTouched.value = true; selectedMaskIds.value = maskAssets.value.map(a => a.id) } function clearSelectedMasks() { maskTouched.value = true; selectedMaskIds.value = [] }
 function togglePart({ id, checked }) { partTouched.value = true; selectedPartIds.value = checked ? [...new Set([...selectedPartIds.value, id])] : selectedPartIds.value.filter(v => v !== id) }
 function selectAllParts() { partTouched.value = true; selectedPartIds.value = partAssets.value.map(a => a.id) } function clearSelectedParts() { partTouched.value = true; selectedPartIds.value = [] }
-async function submitMaskTask() { if (!maskForm.asset_id) return ElMessage.warning('请选择输入文件'); await createTask(projectId, maskForm.mode, { ...maskForm }); maskTouched.value = false; selectedMaskIds.value = []; ElMessage.success('Mask 提取任务已提交'); await loadAll() }
+async function submitMaskTask() {
+  if (!maskForm.asset_id) return ElMessage.warning('请选择输入文件')
+  if (maskForm.mode === 'extract_edge_masks' && (!Number.isInteger(maskForm.dilation_size) || maskForm.dilation_size % 2 === 0)) return ElMessage.warning('断点修补核必须是 1 到 21 之间的奇数')
+  await createTask(projectId, maskForm.mode, { ...maskForm })
+  maskTouched.value = false; selectedMaskIds.value = []
+  ElMessage.success('Mask 提取任务已提交'); await loadAll()
+}
 async function submitPartTask() { if (!partForm.texture_asset_id) return ElMessage.warning('请选择纹理图'); if (!selectedMaskIds.value.length) return ElMessage.warning('请至少选择一个 Mask'); await createTask(projectId, 'masks_to_parts', { ...partForm, mask_asset_ids: selectedMaskIds.value }); partTouched.value = false; selectedPartIds.value = []; ElMessage.success('透明零件任务已提交'); await loadAll() }
 async function submitDatasetTask() { const failedCheck = datasetPreflight.value.find(item => !item.pass); if (failedCheck) return ElMessage.warning(`${failedCheck.label}：${failedCheck.detail}`); await createTask(projectId, 'generate_dataset', { ...datasetForm, part_asset_ids: selectedPartIds.value }); ElMessage.success('数据集生成任务已提交'); router.push('/tasks') }
 function nextFromMasks() { if (!selectedMaskIds.value.length) return ElMessage.warning('请先选择至少一个可用 Mask'); goStep(2) } function nextFromParts() { if (!selectedPartIds.value.length) return ElMessage.warning('请先选择至少一个透明零件'); goStep(3) } function imageSize(asset) { return asset?.meta?.width && asset?.meta?.height ? `${asset.meta.width} x ${asset.meta.height} px` : '-' }
