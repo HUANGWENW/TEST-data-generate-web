@@ -376,6 +376,15 @@ def extract_redline_masks(
     return saved
 
 
+def resolve_texture_fit(texture_fit: str | None, random_crop: bool = True) -> str:
+    """Explicit fill mode wins; retain the meaning of historical task params."""
+    if texture_fit is None:
+        return "tile" if random_crop else "stretch"
+    if texture_fit not in ("tile", "stretch"):
+        raise ValueError("texture_fit must be 'tile' or 'stretch'")
+    return texture_fit
+
+
 def texture_masks(
     mask_dir: Path,
     texture_path: Path,
@@ -383,6 +392,7 @@ def texture_masks(
     random_crop: bool = True,
     max_side_pixels: int = 0,
     project_name: str = "project",
+    texture_fit: str | None = None,
 ) -> list[Path]:
     return texture_mask_files(
         list_image_files(mask_dir),
@@ -391,6 +401,7 @@ def texture_masks(
         random_crop,
         max_side_pixels,
         project_name,
+        texture_fit=texture_fit,
     )
 
 
@@ -401,8 +412,10 @@ def texture_mask_files(
     random_crop: bool = True,
     max_side_pixels: int = 0,
     project_name: str = "project",
+    texture_fit: str | None = None,
 ) -> list[Path]:
-    """Apply texture at the mask's resolution; zero disables downsampling."""
+    """Fill using original texture pixels or stretch width/height to the mask."""
+    fill_mode = resolve_texture_fit(texture_fit, random_crop)
     if max_side_pixels < 0:
         raise ValueError("max_side_pixels must be zero (original size) or positive")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -414,7 +427,7 @@ def texture_mask_files(
         h_mask, w_mask = mask.shape
         h_tex, w_tex = texture.shape[:2]
 
-        if random_crop:
+        if fill_mode == "tile":
             x0 = random.randint(0, w_tex - w_mask) if w_tex >= w_mask else random.randrange(w_tex)
             y0 = random.randint(0, h_tex - h_mask) if h_tex >= h_mask else random.randrange(h_tex)
             # Allocate only the required crop, rather than a much larger tiled

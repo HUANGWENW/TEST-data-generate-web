@@ -132,6 +132,7 @@ def run_task(task_id: str):
             if project is None:
                 raise ValueError(f"Project not found: {task.project_id}")
             texture_asset = get_asset(db, params["texture_asset_id"])
+            texture_fit = algorithms.resolve_texture_fit(params.get("texture_fit"), bool(params.get("random_crop", True)))
             output_dir = resolve_project_path(task.project_id, "parts", task.id)
             mask_asset_ids = params.get("mask_asset_ids") or []
             if mask_asset_ids:
@@ -146,6 +147,7 @@ def run_task(task_id: str):
                     random_crop=bool(params.get("random_crop", True)),
                     max_side_pixels=int(params.get("max_side_pixels", 0)),
                     project_name=project.name,
+                    texture_fit=texture_fit,
                 )
             else:
                 mask_dir = Path(params["mask_dir"]) if params.get("mask_dir") else latest_image_dir(root / "masks")
@@ -156,10 +158,11 @@ def run_task(task_id: str):
                     random_crop=bool(params.get("random_crop", True)),
                     max_side_pixels=int(params.get("max_side_pixels", 0)),
                     project_name=project.name,
+                    texture_fit=texture_fit,
                 )
             for path in saved:
-                add_asset(db, task.project_id, "part", path, meta={"task_id": task.id, "texture_asset_id": texture_asset.id, "selected_mask_count": len(mask_asset_ids)})
-            result = {"count": len(saved), "output_dir": str(output_dir)}
+                add_asset(db, task.project_id, "part", path, meta={"task_id": task.id, "texture_asset_id": texture_asset.id, "selected_mask_count": len(mask_asset_ids), "texture_fit": texture_fit})
+            result = {"count": len(saved), "output_dir": str(output_dir), "texture_fit": texture_fit}
             update_task(db, task, status="succeeded", progress=100, message=f"生成 {len(saved)} 个透明零件", result=result, finished_at=utcnow())
 
         elif task.task_type == "generate_dataset":

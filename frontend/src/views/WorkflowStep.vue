@@ -44,9 +44,15 @@
       <AssetReview title="选择输入 Mask" description="只会使用当前勾选的 Mask 生成透明零件；不需要的可删除。" :assets="maskAssets" :selected-ids="selectedMaskIds" deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="toggleMask" @select-all="selectAllMasks" @clear="clearSelectedMasks" />
       <el-divider />
       <el-form label-width="110px" class="task-form">
-        <el-form-item label="纹理图"><el-select v-model="partForm.texture_asset_id" placeholder="选择纹理图" filterable><el-option v-for="item in textureAssets" :key="item.id" :label="item.original_name" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="随机裁剪"><el-switch v-model="partForm.random_crop" /></el-form-item>
-        <el-form-item label="输出最长边"><div class="field-with-note"><el-input-number v-model="partForm.max_side_pixels" :min="0" :step="500" :precision="0" /><span class="hint">0：保留输入 Mask 的原始尺寸和透明通道。正数：按此像素上限等比缩小，不放大。纹理不足时随机裁剪模式会平铺补足。</span></div></el-form-item>
+        <el-form-item label="纹理图"><el-select v-model="partForm.texture_asset_id" placeholder="选择纹理图" filterable><el-option v-for="item in textureAssets" :key="item.id" :label="`${item.original_name} (${imageSize(item)})`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="纹理填充">
+          <div class="texture-fill-control">
+            <el-radio-group v-model="partForm.texture_fit" aria-label="纹理填充方式"><el-radio-button value="tile">原尺寸裁剪/平铺</el-radio-button><el-radio-button value="stretch">拉伸宽高</el-radio-button></el-radio-group>
+            <div class="hint">{{ partForm.texture_fit === 'stretch' ? '将整张纹理的宽、高分别缩放至每个 Mask 的尺寸，避免重复平铺；纹理比例可能改变。' : '保留纹理原始像素，随机裁剪填充；纹理不足时重复平铺。' }}</div>
+            <div v-if="textureSizeComparison" class="hint">{{ textureSizeComparison }}</div>
+          </div>
+        </el-form-item>
+        <el-form-item label="输出最长边"><div class="field-with-note"><el-input-number v-model="partForm.max_side_pixels" :min="0" :step="500" :precision="0" /><span class="hint">0：保留输入 Mask 的原始尺寸和透明通道。正数：按此像素上限等比缩小，不放大。纹理填充方式不改变零件轮廓和孔洞。</span></div></el-form-item>
         <el-form-item><el-button type="primary" :icon="VideoPlay" :disabled="deletingAssets" @click="submitPartTask">生成透明零件</el-button></el-form-item>
       </el-form>
       <AssetReview title="透明零件验收" description="勾选需要的透明零件参与合成；不需要的可单个删除，或勾选后批量删除。" :assets="partAssets" :selected-ids="selectedPartIds" checkerboard deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="togglePart" @select-all="selectAllParts" @clear="clearSelectedParts" />
@@ -216,7 +222,16 @@ const stepHint = computed(() => ['提取并验收可用轮廓', '从已有 Mask 
 const inputAssets = computed(() => assets.value.filter(a => a.asset_type === 'input')); const maskAssets = computed(() => assets.value.filter(a => a.asset_type === 'mask')); const textureAssets = computed(() => assets.value.filter(a => a.asset_type === 'texture')); const partAssets = computed(() => assets.value.filter(a => a.asset_type === 'part')); const backgroundAssets = computed(() => assets.value.filter(a => a.asset_type === 'background'))
 const selectedBackground = computed(() => backgroundAssets.value.find(a => a.id === datasetForm.background_asset_id))
 const maskForm = reactive({ asset_id: '', mode: 'extract_edge_masks', dilation_size: 3, edge_polarity: 'auto', min_area: 5000, scale: 5, padding: 20, min_width_mm: 10, min_height_mm: 10, min_area_mm2: 100, max_aspect_ratio: 20 })
-const partForm = reactive({ texture_asset_id: '', random_crop: true, max_side_pixels: 0 })
+const partForm = reactive({ texture_asset_id: '', texture_fit: 'tile', max_side_pixels: 0 })
+const textureSizeComparison = computed(() => {
+  const texture = textureAssets.value.find(asset => asset.id === partForm.texture_asset_id)
+  if (!texture?.meta?.width || !texture.meta.height) return ''
+  const selected = new Set(selectedMaskIds.value)
+  const masks = maskAssets.value.filter(asset => selected.has(asset.id) && asset.meta?.width && asset.meta.height)
+  if (!masks.length) return `纹理：${imageSize(texture)}。勾选 Mask 后可比较尺寸。`
+  const range = values => { const min = Math.min(...values); const max = Math.max(...values); return min === max ? `${min}` : `${min}–${max}` }
+  return `纹理：${imageSize(texture)}；已选 Mask：宽 ${range(masks.map(asset => asset.meta.width))} px，高 ${range(masks.map(asset => asset.meta.height))} px。`
+})
 const datasetForm = reactive({ background_asset_id: '', label_format: 'yolo_hbb', layout_mode: 'random', num_images: 20, min_parts: 2, max_parts: 8, angle_min: 0, angle_max: 90, scale_min: 0.6, scale_max: 1, margin_top: 100, margin_bottom: 150, margin_left: 0, margin_right: 0, jpeg_quality: 95, class_id: 0, class_name: 'steel_part' })
 const placementPreviewUrl = computed(() => selectedBackground.value?.meta?.url || '')
 const backgroundWidth = computed(() => Math.max(1, Number(selectedBackground.value?.meta?.width) || 1000))
@@ -355,6 +370,7 @@ watch(currentStep, loadAll); onMounted(() => { loadAll(); refreshTimer = window.
 .section-alert { margin-bottom: 20px; }
 .task-form { max-width: 980px; }
 .field-with-note { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.texture-fill-control { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 100%; }
 .hint { max-width: 460px; color: #64748b; font-size: 12px; line-height: 1.55; }
 .inline-range { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .workflow-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 22px; margin-top: 22px; border-top: 1px solid #e8edf4; }
