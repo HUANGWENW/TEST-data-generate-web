@@ -4,7 +4,7 @@ from typing import Literal
 import zipfile
 
 import redis
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from rq import Queue
 from sqlalchemy import select
@@ -14,7 +14,8 @@ from starlette.background import BackgroundTask
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.entities import Asset, GenerationTask, Project
-from app.schemas.entities import AssetRead, DatasetGalleryRead, ProjectCreate, ProjectRead, TaskCreate, TaskRead
+from app.schemas.entities import AssetDelete, AssetRead, DatasetGalleryRead, ProjectCreate, ProjectRead, TaskCreate, TaskRead
+from app.services.deletion import delete_asset_data, delete_project_data, lock_project
 from app.services.storage import image_meta, path_to_url, project_root, safe_name, save_upload_file
 from app.workers.jobs import run_task
 
@@ -46,6 +47,12 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
     return project
 
 
+@router.delete("/{project_id}", status_code=204)
+def delete_project(project_id: str, db: Session = Depends(get_db)):
+    delete_project_data(db, project_id)
+    return Response(status_code=204)
+
+
 @router.post("/{project_id}/assets/upload", response_model=AssetRead)
 def upload_asset(
     project_id: str,
@@ -53,8 +60,7 @@ def upload_asset(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    if db.get(Project, project_id) is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+    lock_project(db, project_id)
     if asset_type == "dxf" and Path(file.filename or "").suffix.lower() != ".dxf":
         raise HTTPException(status_code=422, detail="DXF upload requires a .dxf file")
     path = save_upload_file(project_id, asset_type, file)
@@ -95,6 +101,17 @@ def list_assets(project_id: str, asset_type: str | None = None, db: Session = De
         for asset in assets:
             db.refresh(asset)
     return assets
+
+
+@router.post("/{project_id}/assets/delete")
+def delete_assets(project_id: str, payload: AssetDelete, db: Session = Depends(get_db)):
+    return {"deleted_ids": delete_asset_data(db, project_id, payload.asset_ids)}
+
+
+@router.delete("/{project_id}/assets/{asset_id}", status_code=204)
+def delete_asset(project_id: str, asset_id: str, db: Session = Depends(get_db)):
+    delete_asset_data(db, project_id, [asset_id])
+    return Response(status_code=204)
 
 
 @router.get("/{project_id}/datasets/{dataset_id}/files", response_model=DatasetGalleryRead)
@@ -195,8 +212,23 @@ def download_dataset_archive(
 
 @router.post("/{project_id}/tasks", response_model=TaskRead)
 def create_task(project_id: str, payload: TaskCreate, db: Session = Depends(get_db)):
-    if db.get(Project, project_id) is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+    lock_project(db, project_id)
+    # Reject stale selections after deletion before they enter the worker queue.
+    selected_ids: list[str] = []
+    for key in ("asset_id", "texture_asset_id", "background_asset_id"):
+        if payload.params.get(key):
+            selected_ids.append(payload.params[key])
+    for key in ("mask_asset_ids", "part_asset_ids"):
+        values = payload.params.get(key) or []
+        if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+            raise HTTPException(status_code=422, detail="素材选择参数必须是 ID 列表")
+        selected_ids.extend(values)
+    if any(not isinstance(value, str) for value in selected_ids):
+        raise HTTPException(status_code=422, detail="素材 ID 必须是字符串")
+    if selected_ids:
+        found = set(db.scalars(select(Asset.id).where(Asset.project_id == project_id, Asset.id.in_(set(selected_ids)))).all())
+        if found != set(selected_ids):
+            raise HTTPException(status_code=409, detail="所选素材已被删除或不属于当前项目，请刷新后重新选择")
     task = GenerationTask(project_id=project_id, task_type=payload.task_type, params=payload.params, status="queued", progress=0, message="等待执行")
     db.add(task)
     db.commit()

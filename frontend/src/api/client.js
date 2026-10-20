@@ -15,6 +15,16 @@ export async function createProject(payload) {
   return data
 }
 
+
+export async function deleteProject(projectId) {
+  await api.delete(`/projects/${projectId}`, { timeout: 0 })
+}
+
+export async function deleteAssets(projectId, assetIds) {
+  const { data } = await api.post(`/projects/${projectId}/assets/delete`, { asset_ids: assetIds }, { timeout: 0 })
+  return data.deleted_ids
+}
+
 export async function getProject(id) {
   const { data } = await api.get(`/projects/${id}`)
   return data

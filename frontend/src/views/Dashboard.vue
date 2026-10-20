@@ -20,7 +20,12 @@
         <el-table-column label="说明" min-width="300"><template #default="{ row }"><span class="project-description">{{ row.description || '暂无项目说明' }}</span></template></el-table-column>
         <el-table-column label="创建时间" width="190"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>
         <el-table-column label="状态" width="120"><template #default><el-tag type="success" effect="light">可用</el-tag></template></el-table-column>
-        <el-table-column label="操作" width="130"><template #default="{ row }"><el-button type="primary" link @click="$router.push(`/projects/${row.id}`)">进入工作台 →</el-button></template></el-table-column>
+        <el-table-column label="操作" width="190" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link :disabled="deletingProjectId === row.id" @click="$router.push(`/projects/${row.id}`)">进入工作台</el-button>
+            <el-button type="danger" link :icon="Delete" :loading="deletingProjectId === row.id" :disabled="Boolean(deletingProjectId)" :aria-label="`删除项目 ${row.name}`" @click="removeProject(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
       <el-empty v-else description="还没有项目，先创建一个生产项目" />
     </section>
@@ -39,14 +44,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CircleCheckFilled, DataAnalysis, FolderOpened, Plus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { createProject, listProjects } from '../api/client'
+import { CircleCheckFilled, DataAnalysis, Delete, FolderOpened, Plus } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { createProject, deleteProject, listProjects } from '../api/client'
 
 const projects = ref([])
 const router = useRouter()
 const loading = ref(false)
 const dialogVisible = ref(false)
+const deletingProjectId = ref('')
 const form = reactive({ name: '', description: '' })
 const todayProjects = computed(() => projects.value.filter(item => new Date(item.created_at).toDateString() === new Date().toDateString()).length)
 
@@ -67,6 +73,26 @@ async function submit() {
   ElMessage.success('项目已创建')
   await load()
   if (project?.id) router.push(`/projects/${project.id}`)
+}
+
+async function removeProject(project) {
+  if (deletingProjectId.value) return
+  try {
+    await ElMessageBox.confirm(`确定删除项目“${project.name}”？项目内的所有素材、生成结果和任务记录也将删除，无法撤销。`, '删除项目', {
+      confirmButtonText: '删除整个项目', cancelButtonText: '取消', type: 'warning', confirmButtonClass: 'el-button--danger',
+    })
+  } catch { return }
+  deletingProjectId.value = project.id
+  try {
+    await deleteProject(project.id)
+    projects.value = projects.value.filter(item => item.id !== project.id)
+    ElMessage.success('项目已删除')
+  } catch (error) {
+    if (error.response?.status === 404) await load()
+    ElMessage.error(error.response?.data?.detail || '项目删除失败，请稍后重试')
+  } finally {
+    deletingProjectId.value = ''
+  }
 }
 
 onMounted(load)

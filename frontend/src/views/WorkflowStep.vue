@@ -32,24 +32,24 @@
           <el-form-item label="最小面积"><div class="field-with-note"><el-input-number v-model="maskForm.min_area" :min="1" :step="100" /><span class="hint">单位 px²；过滤小零件，内孔会保留。</span></div></el-form-item>
           <el-form-item label="断点修补核"><div class="field-with-note"><el-input-number v-model="maskForm.dilation_size" :min="1" :max="21" :step="2" :precision="0" /><span class="hint">1 表示不修补；较大值可连接小断点，也可能合并相邻轮廓。闭合轮廓按原图像素填充，内孔保持透明。</span></div></el-form-item>
         </template>
-        <el-form-item><el-button type="primary" :icon="VideoPlay" @click="submitMaskTask">提交 Mask 提取</el-button></el-form-item>
+        <el-form-item><el-button type="primary" :icon="VideoPlay" :disabled="deletingAssets" @click="submitMaskTask">提交 Mask 提取</el-button></el-form-item>
       </el-form>
-      <AssetReview title="Mask 验收" description="勾选轮廓完整、内孔正确的 Mask，作为第二步的输入。" :assets="maskAssets" :selected-ids="selectedMaskIds" @toggle="toggleMask" @select-all="selectAllMasks" @clear="clearSelectedMasks" />
+      <AssetReview title="Mask 验收" description="勾选需要的 Mask 作为第二步输入；不需要的可单个删除，或勾选后批量删除。" :assets="maskAssets" :selected-ids="selectedMaskIds" deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="toggleMask" @select-all="selectAllMasks" @clear="clearSelectedMasks" />
       <div class="workflow-footer"><el-button type="primary" :icon="ArrowRight" icon-position="right" @click="nextFromMasks">进入第二步</el-button></div>
     </el-card>
 
     <el-card v-else-if="currentStep === 2" class="task-page-card" shadow="never">
       <template #header><div class="card-title"><span>Mask 生成透明零件</span><el-tag type="success">RGBA</el-tag></div></template>
       <el-alert v-if="!maskAssets.length" title="当前项目没有 Mask；可直接返回项目首页上传素材，或先执行第一步。" type="warning" :closable="false" show-icon class="section-alert" />
-      <AssetReview title="选择输入 Mask" description="可从第二步开始。只会使用当前勾选的 Mask 生成透明零件。" :assets="maskAssets" :selected-ids="selectedMaskIds" @toggle="toggleMask" @select-all="selectAllMasks" @clear="clearSelectedMasks" />
+      <AssetReview title="选择输入 Mask" description="只会使用当前勾选的 Mask 生成透明零件；不需要的可删除。" :assets="maskAssets" :selected-ids="selectedMaskIds" deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="toggleMask" @select-all="selectAllMasks" @clear="clearSelectedMasks" />
       <el-divider />
       <el-form label-width="110px" class="task-form">
         <el-form-item label="纹理图"><el-select v-model="partForm.texture_asset_id" placeholder="选择纹理图" filterable><el-option v-for="item in textureAssets" :key="item.id" :label="item.original_name" :value="item.id" /></el-select></el-form-item>
         <el-form-item label="随机裁剪"><el-switch v-model="partForm.random_crop" /></el-form-item>
         <el-form-item label="输出最长边"><div class="field-with-note"><el-input-number v-model="partForm.max_side_pixels" :min="0" :step="500" :precision="0" /><span class="hint">0：保留输入 Mask 的原始尺寸和透明通道。正数：按此像素上限等比缩小，不放大。纹理不足时随机裁剪模式会平铺补足。</span></div></el-form-item>
-        <el-form-item><el-button type="primary" :icon="VideoPlay" @click="submitPartTask">生成透明零件</el-button></el-form-item>
+        <el-form-item><el-button type="primary" :icon="VideoPlay" :disabled="deletingAssets" @click="submitPartTask">生成透明零件</el-button></el-form-item>
       </el-form>
-      <AssetReview title="透明零件验收" description="生成完成后，在这里筛选适合参与合成的透明零件。" :assets="partAssets" :selected-ids="selectedPartIds" checkerboard @toggle="togglePart" @select-all="selectAllParts" @clear="clearSelectedParts" />
+      <AssetReview title="透明零件验收" description="勾选需要的透明零件参与合成；不需要的可单个删除，或勾选后批量删除。" :assets="partAssets" :selected-ids="selectedPartIds" checkerboard deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="togglePart" @select-all="selectAllParts" @clear="clearSelectedParts" />
       <div class="workflow-footer"><el-button type="primary" :icon="ArrowRight" icon-position="right" @click="nextFromParts">进入第三步</el-button></div>
     </el-card>
 
@@ -94,6 +94,9 @@
           :assets="partAssets"
           :selected-ids="selectedPartIds"
           checkerboard
+          deletable
+          :deleting="deletingAssets"
+          @delete="removeAssets"
           @toggle="togglePart"
           @select-all="selectAllParts"
           @clear="clearSelectedParts"
@@ -148,7 +151,7 @@
             <ul><li v-for="item in datasetPreflight" :key="item.label" :class="{ pass: item.pass }"><span>{{ item.pass ? '✓' : '!' }}</span>{{ item.label }}<small>{{ item.detail }}</small></li></ul>
           </div>
 
-          <el-button class="dataset-submit" type="primary" size="large" :icon="VideoPlay" :disabled="!datasetReady" @click="submitDatasetTask">开始生成数据集</el-button>
+          <el-button class="dataset-submit" type="primary" size="large" :icon="VideoPlay" :disabled="!datasetReady || deletingAssets" @click="submitDatasetTask">开始生成数据集</el-button>
         </section>
 
         <aside class="dataset-preview-card">
@@ -198,13 +201,15 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ArrowRight, CircleCheckFilled, DataAnalysis, PictureFilled, Refresh, Setting, VideoPlay, WarningFilled } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { createTask, getProject, listAssets } from '../api/client'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { createTask, deleteAssets, getProject, listAssets } from '../api/client'
 import AssetReview from '../components/AssetReview.vue'
 
 const route = useRoute(); const router = useRouter(); const projectId = route.params.id
 const project = ref(null); const assets = ref([]); const selectedMaskIds = ref([]); const selectedPartIds = ref([])
 const maskTouched = ref(false); const partTouched = ref(false); let refreshTimer = null
+const deletingAssets = ref(false)
+let loadVersion = 0
 const currentStep = computed(() => Math.min(3, Math.max(1, Number(route.params.step) || 1)))
 const stepTitle = computed(() => ['提取 Mask', '生成透明零件', '合成数据集与标签'][currentStep.value - 1])
 const stepHint = computed(() => ['提取并验收可用轮廓', '从已有 Mask 开始也可以', '从已有透明零件开始也可以'][currentStep.value - 1])
@@ -275,7 +280,49 @@ const datasetFlow = computed(() => [
   { label: labelFormatLabel.value.replace('YOLO ', ''), value: datasetForm.num_images }
 ])
 function syncSelections() { const masks = new Set(maskAssets.value.map(a => a.id)); const parts = new Set(partAssets.value.map(a => a.id)); selectedMaskIds.value = selectedMaskIds.value.filter(id => masks.has(id)); selectedPartIds.value = selectedPartIds.value.filter(id => parts.has(id)); if (!maskTouched.value && !selectedMaskIds.value.length) selectedMaskIds.value = [...masks]; if (!partTouched.value && !selectedPartIds.value.length) selectedPartIds.value = [...parts] }
-async function loadAll() { project.value = await getProject(projectId); assets.value = await listAssets(projectId); syncSelections() }
+async function loadAll() {
+  if (deletingAssets.value) return
+  const version = ++loadVersion
+  try {
+    const [nextProject, nextAssets] = await Promise.all([getProject(projectId), listAssets(projectId)])
+    if (version !== loadVersion || deletingAssets.value) return
+    project.value = nextProject; assets.value = nextAssets; syncSelections()
+  } catch (error) {
+    if (version !== loadVersion) return
+    if (error.response?.status === 404) { ElMessage.warning('项目已被删除'); router.push('/'); return }
+    ElMessage.error('项目加载失败，请稍后刷新')
+  }
+}
+
+async function removeAssets(ids) {
+  if (deletingAssets.value) return
+  const wanted = new Set(ids)
+  const selected = assets.value.filter(asset => wanted.has(asset.id) && ['mask', 'part'].includes(asset.asset_type))
+  if (!selected.length) return
+  if (selected.length > 1000) return ElMessage.warning('每次最多删除 1000 个素材，请分批选择')
+  const label = selected[0].asset_type === 'mask' ? 'Mask' : '透明零件'
+  const sample = selected.slice(0, 3).map(asset => asset.original_name).join('、')
+  try {
+    await ElMessageBox.confirm(`确定删除这 ${selected.length} 个${label}？${sample}${selected.length > 3 ? ' 等' : ''}。文件将被删除，无法撤销；已生成的其他结果会保留。`, `删除${label}`, {
+      confirmButtonText: `删除 ${selected.length} 个`, cancelButtonText: '取消', type: 'warning', confirmButtonClass: 'el-button--danger',
+    })
+  } catch { return }
+  deletingAssets.value = true
+  ++loadVersion
+  try {
+    const removed = new Set(await deleteAssets(projectId, selected.map(asset => asset.id)))
+    assets.value = assets.value.filter(asset => !removed.has(asset.id))
+    if (selected.some(asset => asset.asset_type === 'mask')) maskTouched.value = true
+    if (selected.some(asset => asset.asset_type === 'part')) partTouched.value = true
+    syncSelections()
+    ElMessage.success(`已删除 ${removed.size} 个${label}`)
+  } catch (error) {
+    ElMessage.error(error.response?.data?.detail || '素材删除失败，请稍后重试')
+  } finally {
+    deletingAssets.value = false
+    await loadAll()
+  }
+}
 function goStep(step) { router.push(`/projects/${projectId}/step/${step}`) }
 function toggleMask({ id, checked }) { maskTouched.value = true; selectedMaskIds.value = checked ? [...new Set([...selectedMaskIds.value, id])] : selectedMaskIds.value.filter(v => v !== id) }
 function selectAllMasks() { maskTouched.value = true; selectedMaskIds.value = maskAssets.value.map(a => a.id) } function clearSelectedMasks() { maskTouched.value = true; selectedMaskIds.value = [] }

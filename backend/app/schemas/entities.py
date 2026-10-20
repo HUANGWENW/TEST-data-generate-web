@@ -38,6 +38,10 @@ class TaskCreate(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
+class AssetDelete(BaseModel):
+    asset_ids: list[str] = Field(min_length=1, max_length=1000)
+
+
 class TaskRead(BaseModel):
     id: str
     project_id: str
