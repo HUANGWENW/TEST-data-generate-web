@@ -75,5 +75,14 @@ onMounted(loadAll)
 </script>
 
 <style scoped>
-.dxf-page{max-width:1180px}.dxf-upload-card{border-radius:8px}.card-title{display:flex;justify-content:space-between;align-items:center;font-weight:700}.hint{margin-top:12px;color:#6b7280;font-size:13px;line-height:1.6}.section-heading h3{margin:0 0 6px}.output-contract{display:flex;gap:12px;align-items:center;padding:16px;border:1px solid #d7e7f8;background:#f4f9ff;border-radius:8px;color:#315d88}.contract-icon{display:grid;place-items:center;width:38px;height:38px;background:#e4f1ff;color:#2878b9;border-radius:6px;font-size:20px}.output-contract strong{display:block}.output-contract p{margin:5px 0 0;font-size:13px;line-height:1.6}
+.dxf-page { max-width: 1244px; }
+.card-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 600; }
+.hint { margin-top: 16px; color: var(--studio-muted); font-size: 14px; line-height: 1.7; }
+.hint code { font-family: var(--studio-mono); }
+.section-heading { margin: 28px 0 14px; }
+.section-heading h3 { margin: 0 0 6px; font: 600 23px/1.4 var(--studio-serif); }
+.output-contract { display: flex; gap: 14px; align-items: flex-start; padding: 18px 0; border-top: 1px solid var(--studio-border); color: var(--studio-muted); }
+.contract-icon { display: grid; flex-shrink: 0; place-items: center; width: 38px; height: 38px; border: 1px solid var(--studio-border); color: var(--studio-primary); font-size: 20px; }
+.output-contract strong { display: block; color: var(--studio-text); font-weight: 600; }
+.output-contract p { margin: 5px 0 0; font-size: 14px; line-height: 1.7; }
 </style>

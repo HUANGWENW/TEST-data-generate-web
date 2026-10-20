@@ -1,7 +1,7 @@
 <template>
   <div class="page tasks-page">
     <div class="toolbar">
-      <div><span class="page-kicker">BACKGROUND JOBS</span><h2>任务中心</h2><div class="muted">任务状态每 3 秒自动刷新，可在完成后直接进入结果图库。</div></div>
+      <div><h2>任务中心</h2><div class="muted">任务状态每 3 秒自动刷新，可在完成后直接进入结果图库。</div></div>
       <el-button :icon="Refresh" :loading="loading" @click="load">立即刷新</el-button>
     </div>
 
@@ -61,29 +61,36 @@ onUnmounted(() => { if (timer) window.clearInterval(timer) })
 </script>
 
 <style scoped>
-.page-kicker { color: #2563eb; font-size: 10px; font-weight: 700; letter-spacing: .14em; }
-.task-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
-.task-stat { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border: 1px solid #dce3ec; border-radius: 11px; background: #fff; box-shadow: 0 8px 24px rgb(15 23 42 / 4%); }
-.task-stat i { width: 10px; height: 10px; border-radius: 50%; background: #2563eb; box-shadow: 0 0 0 5px rgb(37 99 235 / 10%); }
-.task-stat i.running { background: #d97706; box-shadow: 0 0 0 5px rgb(217 119 6 / 10%); }
-.task-stat i.succeeded { background: #16a34a; box-shadow: 0 0 0 5px rgb(22 163 74 / 10%); }
-.task-stat i.failed { background: #dc2626; box-shadow: 0 0 0 5px rgb(220 38 38 / 10%); }
-.task-stat span,.task-stat strong { display: block; }
-.task-stat span { color: #64748b; font-size: 11px; }
-.task-stat strong { margin-top: 2px; font-size: 23px; }
-.tasks-panel { padding: 20px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgb(15 23 42 / 4%); }
-.panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-.panel-heading h3 { margin: 0 0 5px; font-size: 17px; }
-.panel-heading p { margin: 0; color: #64748b; font-size: 12px; }
-.tasks-panel :deep(.el-table) { box-shadow: none; }
-.task-name { display: flex; align-items: center; gap: 11px; }
-.task-icon { display: grid; flex: 0 0 auto; width: 38px; height: 38px; place-items: center; border-radius: 9px; color: #2563eb; background: #eff6ff; }
-.task-name strong,.task-name small { display: block; }
-.task-name small,.task-progress small,.task-result span,.task-placeholder { margin-top: 3px; color: #64748b; font-size: 10px; }
-.task-progress :deep(.el-progress-bar__outer) { background: #e8eef6; }
+.task-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 26px; border-block: 1px solid var(--studio-border); }
+.task-stat { display: flex; align-items: center; gap: 14px; padding: 18px 24px; border-right: 1px solid var(--studio-border); }
+.task-stat:first-child { padding-left: 0; }
+.task-stat:last-child { border-right: 0; }
+.task-stat i { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #73796b; }
+.task-stat i.running { background: #9c6b24; }
+.task-stat i.succeeded { background: #4e785c; }
+.task-stat i.failed { background: #a34e43; }
+.task-stat span, .task-stat strong { display: block; }
+.task-stat span { color: var(--studio-muted); font-size: 13px; }
+.task-stat strong { margin-top: 3px; color: var(--studio-text); font: 26px/1.4 var(--studio-mono); }
+.tasks-panel { padding: 22px; border: 1px solid var(--studio-border); border-radius: 4px; background: var(--studio-surface); }
+.panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.panel-heading h3 { margin: 0 0 5px; font: 600 23px/1.4 var(--studio-serif); }
+.panel-heading p { margin: 0; color: var(--studio-muted); font-size: 13px; }
+.task-name { display: flex; align-items: center; gap: 12px; }
+.task-icon { display: grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; border: 1px solid var(--studio-border); border-radius: 3px; color: var(--studio-primary); background: var(--studio-bg); }
+.task-name strong, .task-name small { display: block; }
+.task-name small, .task-progress small, .task-result span, .task-placeholder { margin-top: 4px; color: var(--studio-muted); font-size: 13px; line-height: 1.7; }
+.task-name small { font-family: var(--studio-mono); }
+.task-progress :deep(.el-progress-bar__outer) { background: #ebe7dc; }
 .task-result { display: flex; flex-direction: column; align-items: flex-start; }
 .task-result .el-button { min-height: auto; padding: 0; }
-.task-error { color: #dc2626; font-size: 11px; }
-
-@media(max-width: 820px) { .task-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .panel-heading { align-items: flex-start; flex-direction: column; } }
+.task-error { color: #a34e43; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .task-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .task-stat, .task-stat:first-child { padding: 14px 16px; }
+  .task-stat:nth-child(2) { border-right: 0; }
+  .task-stat:nth-child(-n+2) { border-bottom: 1px solid var(--studio-border); }
+  .panel-heading { align-items: flex-start; flex-direction: column; }
+  .tasks-panel { padding: 16px; }
+}
 </style>

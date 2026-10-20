@@ -142,5 +142,40 @@ onMounted(loadAll)
 </script>
 
 <style scoped>
-.toolbar-actions{display:flex;gap:10px}.asset-summary,.workflow-entry-grid,.upload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.summary-item{min-height:72px;padding:14px 16px;border:1px solid #e6eaf2;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:space-between}.summary-item span,.muted,.hint{color:#6b7280}.summary-item strong{font-size:26px}.section-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:12px}.section-heading h3,.step-entry h3{margin:0 0 6px}.step-entry{position:relative;min-height:178px}.step-entry p{min-height:42px;color:#606266;line-height:1.6}.step-number{font-size:13px;color:#409eff;font-weight:700;margin-bottom:12px}.source-type-selector{display:flex;margin-bottom:14px}.source-type-selector :deep(.el-radio-button){flex:1}.source-type-selector :deep(.el-radio-button__inner){width:100%}.background-meta{display:flex;gap:10px;align-items:center;margin-top:14px}.background-meta img{width:72px;height:52px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb}.asset-name{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px}.hint{margin-top:12px;font-size:12px}.work-card{border-radius:8px}
+.asset-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0 20px; border-block: 1px solid var(--studio-border); }
+.summary-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; min-height: 76px; padding: 12px 24px; border-right: 1px solid var(--studio-border); }
+.summary-item:first-child { padding-left: 0; }
+.summary-item:last-child { border-right: 0; padding-right: 0; }
+.summary-item span, .hint { color: var(--studio-muted); font-size: 13px; }
+.summary-item strong { font: 26px/1.4 var(--studio-mono); }
+.section-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin: 30px 0 14px; }
+.section-heading h3 { margin: 0 0 5px; font: 600 23px/1.4 var(--studio-serif); }
+.upload-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.work-card { min-width: 0; }
+.source-type-selector { display: flex; margin-bottom: 14px; }
+.source-type-selector :deep(.el-radio-button) { flex: 1; min-width: 0; }
+.source-type-selector :deep(.el-radio-button__inner) { width: 100%; padding: 8px; font-size: 13px; }
+.background-meta { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+.background-meta > div { min-width: 0; }
+.background-meta img { width: 72px; height: 52px; object-fit: cover; border: 1px solid var(--studio-border); }
+.asset-name { overflow-wrap: anywhere; margin-bottom: 6px; color: var(--studio-text); font-size: 13px; }
+.hint { margin-top: 12px; line-height: 1.7; }
+.workflow-entry-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.step-entry { position: relative; min-width: 0; }
+.step-entry :deep(.el-card__body) { display: flex; flex-direction: column; height: 100%; }
+.step-number { margin-bottom: 18px; color: var(--studio-primary); font: 15px/1.5 var(--studio-mono); }
+.step-entry h3 { margin: 0 0 8px; font: 600 21px/1.4 var(--studio-serif); }
+.step-entry p { flex: 1; margin: 0 0 20px; color: var(--studio-muted); font-size: 14px; line-height: 1.7; }
+.step-entry :deep(.el-button) { width: 100%; }
+@media (max-width: 1120px) { .upload-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .workflow-entry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) {
+  .asset-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; }
+  .summary-item { padding: 12px; min-height: 64px; }
+  .summary-item:first-child { padding-left: 12px; }
+  .summary-item:nth-child(2) { border-right: 0; }
+  .summary-item:nth-child(-n+2) { border-bottom: 1px solid var(--studio-border); }
+  .summary-item:last-child { padding-right: 12px; }
+  .upload-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 430px) { .workflow-entry-grid { grid-template-columns: minmax(0, 1fr); } }
 </style>

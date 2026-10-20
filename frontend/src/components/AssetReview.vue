@@ -30,6 +30,25 @@ function imageSize(asset) { return asset?.meta?.width && asset?.meta?.height ? `
 </script>
 
 <style scoped>
-.review-actions{flex-wrap:wrap;justify-content:flex-end;max-width:100%}.review-header>div:first-child{min-width:0}.selection-count{margin-top:5px}.asset-delete{display:flex;justify-content:flex-end;margin-top:5px}
-.asset-review{margin-top:20px}.review-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}.review-header h3{margin:0 0 6px;font-size:15px}.hint{color:#6b7280;font-size:12px;line-height:1.5}.review-actions{display:flex;gap:8px;flex-shrink:0}.asset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;max-height:520px;overflow:auto;padding:2px}.asset-tile{border:1px solid #e3e8f0;border-radius:8px;background:#fbfcff;padding:8px;cursor:pointer}.asset-tile:hover{border-color:#94bfff}.asset-tile.selected{border-color:#409eff;background:#f0f7ff}.asset-tile-top{display:flex;align-items:center;justify-content:space-between;gap:6px;color:#4b5563;font-size:12px;margin-bottom:6px}.asset-preview{width:100%;aspect-ratio:1;object-fit:contain;border-radius:5px;background:#fff}.checkerboard{background:linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0}.asset-name{margin-top:6px;color:#374151;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media (max-width:600px){.review-header{flex-direction:column}.asset-grid{grid-template-columns:repeat(auto-fill,minmax(124px,1fr))}}
+.asset-review { margin-top: 24px; }
+.review-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+.review-header > div:first-child { min-width: 0; }
+.review-header h3 { margin: 0 0 6px; color: var(--studio-text); font: 600 22px/1.4 var(--studio-serif); }
+.hint { color: var(--studio-muted); font-size: 13px; line-height: 1.7; }
+.selection-count { margin-top: 6px; color: var(--studio-primary); font-family: var(--studio-mono); }
+.review-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
+.asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; max-height: 560px; overflow: auto; padding: 3px; scrollbar-gutter: stable; }
+.asset-tile { min-width: 0; border: 1px solid var(--studio-border); border-radius: 4px; background: var(--studio-surface); padding: 10px; cursor: pointer; transition: border-color 140ms ease, background-color 140ms ease; }
+.asset-tile:hover { border-color: #b89572; }
+.asset-tile:focus-within { outline: 2px solid var(--studio-primary); outline-offset: 1px; }
+.asset-tile.selected { border-color: var(--studio-primary); background: var(--studio-primary-soft); }
+.asset-tile-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: var(--studio-muted); font: 13px/1.6 var(--studio-mono); margin-bottom: 8px; flex-wrap: wrap; }
+.asset-tile-top :deep(.el-checkbox) { height: 24px; }
+.asset-preview { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; border: 1px solid #e9e5da; border-radius: 2px; background: #fff; }
+.checkerboard { background: repeating-conic-gradient(#e2e1da 0% 25%, #fff 0% 50%) 50% / 16px 16px; }
+.asset-name { margin-top: 9px; color: #475044; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-delete { display: flex; justify-content: flex-end; margin-top: 5px; }
+@media (max-width: 700px) { .review-header { flex-direction: column; } .review-actions { justify-content: flex-start; } .asset-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; } }
+@media (max-width: 360px) { .asset-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .asset-tile { transition: none; } }
 </style>

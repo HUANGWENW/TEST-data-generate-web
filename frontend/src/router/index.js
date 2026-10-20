@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import Dashboard from '../views/Dashboard.vue'
+import Dashboard from '../views/DraftingDashboard.vue'
 import ProjectDetail from '../views/ProjectDetail.vue'
 import WorkflowStep from '../views/WorkflowStep.vue'
 import Tasks from '../views/Tasks.vue'

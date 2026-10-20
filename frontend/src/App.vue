@@ -1,74 +1,70 @@
 <template>
-  <el-container class="shell">
-    <el-aside width="240px" class="aside">
-      <div class="brand">
-        <div class="brand-mark">P</div>
-        <div><strong>零件数据</strong><span>生成控制台</span></div>
+  <div class="drafting-shell">
+    <header class="drafting-header">
+      <router-link to="/" class="drafting-brand" aria-label="零件数据，项目总览">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 8V4h4m8 0h4v4M4 16v4h4m8 0h4v-4M8 8h8v8H8z" /></svg>
+        <span>零件数据</span>
+      </router-link>
+      <nav class="drafting-navigation" aria-label="主导航">
+        <router-link to="/" :class="{ 'section-active': isProjectSection }">项目总览</router-link>
+        <router-link to="/tasks">任务中心</router-link>
+        <router-link to="/guide">使用指引</router-link>
+      </nav>
+      <span class="drafting-workspace-label">制图工作台</span>
+    </header>
+    <nav v-if="projectRoot" class="project-navigation" aria-label="当前项目导航">
+      <span class="project-reference">项目 / {{ String(route.params.id).slice(0, 8) }}</span>
+      <div class="project-route-links">
+        <router-link v-for="item in projectLinks" :key="item.path" :to="projectRoot + item.path">{{ item.label }}</router-link>
       </div>
-      <div class="nav-caption">WORKSPACE</div>
-      <el-menu router :default-active="$route.path" class="menu" background-color="transparent" text-color="#94a3b8" active-text-color="#ffffff">
-        <el-menu-item index="/"><el-icon><Folder /></el-icon><span>项目总览</span></el-menu-item>
-        <el-menu-item index="/tasks"><el-icon><Operation /></el-icon><span>任务中心</span></el-menu-item>
-        <el-menu-item index="/guide"><el-icon><Reading /></el-icon><span>使用指引</span></el-menu-item>
-      </el-menu>
-      <div class="aside-status">
-        <div><i></i><strong>系统运行正常</strong></div>
-        <span>FastAPI · Redis · RQ</span>
-      </div>
-    </el-aside>
-    <el-container>
-      <el-header class="header">
-        <div class="header-title"><span>PARTS DATA STUDIO</span><strong>{{ $route.meta.title || '工作台' }}</strong></div>
-        <div class="header-actions">
-          <div class="header-health"><i></i>服务在线</div>
-          <div class="operator"><span>操作员</span><strong>01</strong></div>
-        </div>
-      </el-header>
-      <el-main class="workspace-main"><router-view /></el-main>
-    </el-container>
-  </el-container>
+    </nav>
+    <main class="route-workspace"><router-view /></main>
+  </div>
 </template>
 
-<style scoped>
-.shell { min-height: 100vh; background: #f3f6fa; }
-.aside { position: sticky; top: 0; z-index: 10; display: flex; flex-direction: column; height: 100vh; color: #fff; background: #0f172a; box-shadow: 8px 0 30px rgb(15 23 42 / 9%); }
-.brand { display: flex; align-items: center; gap: 12px; height: 76px; padding: 0 20px; border-bottom: 1px solid rgb(148 163 184 / 13%); }
-.brand-mark { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 9px; background: #2563eb; box-shadow: 0 7px 18px rgb(37 99 235 / 30%); font-size: 18px; font-weight: 800; }
-.brand strong,.brand span { display: block; }
-.brand strong { font-size: 15px; letter-spacing: .02em; }
-.brand span { margin-top: 3px; color: #94a3b8; font-size: 11px; }
-.nav-caption { padding: 24px 22px 9px; color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: .14em; }
-.menu { padding: 0 12px; border-right: none; }
-.menu :deep(.el-menu-item) { height: 46px; margin: 4px 0; border-radius: 8px; }
-.menu :deep(.el-menu-item:hover) { color: #e2e8f0; background: rgb(255 255 255 / 6%); }
-.menu :deep(.el-menu-item.is-active) { background: #2563eb; box-shadow: 0 7px 18px rgb(37 99 235 / 24%); }
-.menu :deep(.el-menu-item .el-icon) { font-size: 17px; }
-.aside-status { padding: 14px; margin: auto 16px 18px; border: 1px solid rgb(148 163 184 / 12%); border-radius: 10px; background: #162238; }
-.aside-status div { display: flex; align-items: center; gap: 8px; }
-.aside-status i,.header-health i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgb(34 197 94 / 13%); }
-.aside-status strong { font-size: 12px; }
-.aside-status span { display: block; margin-top: 9px; color: #94a3b8; font-size: 10px; }
-.header { display: flex; align-items: center; justify-content: space-between; height: 72px; padding: 0 28px; border-bottom: 1px solid #e2e8f0; background: rgb(255 255 255 / 94%); backdrop-filter: blur(12px); }
-.header-title span,.header-title strong { display: block; }
-.header-title span { margin-bottom: 3px; color: #94a3b8; font-size: 9px; font-weight: 700; letter-spacing: .13em; }
-.header-title strong { color: #172033; font-size: 16px; }
-.header-actions { display: flex; align-items: center; gap: 16px; }
-.header-health { display: flex; align-items: center; gap: 8px; padding: 7px 11px; border: 1px solid #dcefe2; border-radius: 999px; color: #15803d; background: #f0fdf4; font-size: 11px; font-weight: 600; }
-.operator { display: flex; align-items: center; gap: 9px; color: #64748b; font-size: 11px; }
-.operator strong { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; color: #fff; background: #334155; font-size: 11px; }
-.workspace-main { padding: 0; overflow: visible; }
+<script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
+const projectRoot = computed(() => route.params.id ? `/projects/${encodeURIComponent(String(route.params.id))}` : '')
+const isProjectSection = computed(() => route.path === '/' || route.path.startsWith('/projects/'))
+const projectLinks = [
+  { path: '', label: '素材工作台' },
+  { path: '/step/1', label: '01 提取 Mask' },
+  { path: '/step/2', label: '02 透明零件' },
+  { path: '/step/3', label: '03 合成数据' },
+  { path: '/gallery', label: '结果阅览' },
+  { path: '/dxf', label: 'DXF 文件' }
+]
+</script>
+
+<style scoped>
+.drafting-shell { min-height: 100dvh; background: var(--studio-bg); color: var(--studio-text); }
+.drafting-header { width: min(calc(100% - 64px), 1440px); min-height: 72px; margin: 0 auto; display: flex; align-items: center; gap: 48px; border-bottom: 1px solid var(--studio-border); }
+.drafting-brand { display: inline-flex; align-items: center; gap: 12px; color: var(--studio-text); text-decoration: none; font: 600 23px/1.4 var(--studio-serif); white-space: nowrap; }
+.drafting-brand svg { color: var(--studio-primary); }
+.drafting-navigation { display: flex; align-items: stretch; gap: 30px; align-self: stretch; }
+.drafting-navigation a { display: flex; align-items: center; border-bottom: 2px solid transparent; text-decoration: none; color: var(--studio-muted); font-size: 14px; transition: color 120ms ease, border-color 120ms ease; }
+.drafting-navigation a.router-link-exact-active, .drafting-navigation a.section-active { color: var(--studio-text); border-color: var(--studio-primary); font-weight: 600; }
+.drafting-navigation a:hover { color: var(--studio-primary); }
+.drafting-workspace-label { margin-left: auto; color: var(--studio-muted); font-size: 13px; white-space: nowrap; }
+.project-navigation { width: min(calc(100% - 64px), 1440px); margin: 0 auto; display: flex; align-items: center; gap: 28px; min-height: 58px; border-bottom: 1px solid var(--studio-border); }
+.project-reference { flex-shrink: 0; color: var(--studio-muted); font: 13px/1.6 var(--studio-mono); }
+.project-route-links { display: flex; align-self: stretch; flex-wrap: wrap; gap: 0 24px; }
+.project-route-links a { display: flex; align-items: center; min-height: 44px; color: var(--studio-muted); font-size: 13px; text-decoration: none; border-bottom: 2px solid transparent; }
+.project-route-links a:hover { color: var(--studio-primary); }
+.project-route-links a.router-link-exact-active { color: var(--studio-primary); border-bottom-color: var(--studio-primary); font-weight: 600; }
+.route-workspace { min-width: 0; }
+.drafting-header a:focus-visible, .project-navigation a:focus-visible { outline: 2px solid var(--studio-primary); outline-offset: 4px; }
+@media (max-width: 1060px) { .project-navigation { align-items: flex-start; flex-direction: column; gap: 4px; padding-top: 13px; } }
 @media (max-width: 700px) {
-  .shell { flex-direction: column; }
-  .aside { position: static; display: flex; align-items: stretch; width: 100% !important; min-height: 52px; height: auto; background: #0f172a; }
-  .brand { flex: 0 0 auto; height: 52px; padding: 0 13px; white-space: nowrap; }
-  .brand-mark { width: 30px; height: 30px; font-size: 14px; }
-  .brand span,.nav-caption,.aside-status { display: none; }
-  .menu { display: flex; flex: 1; min-width: 0; }
-  .menu :deep(.el-menu-item) { flex: 1; justify-content: center; min-width: 0; height: 44px; padding: 0 8px; }
-  .menu :deep(.el-menu-item span) { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-  .shell > .el-container { width: 100%; }
-  .header { height: 54px; padding: 0 14px; }
-  .header-title span,.header-health,.operator > span { display: none; }
+  .drafting-header { width: calc(100% - 32px); gap: 14px; flex-wrap: wrap; padding: 17px 0 0; }
+  .drafting-brand { font-size: 22px; }
+  .drafting-workspace-label { order: 1; }
+  .drafting-navigation { order: 2; width: 100%; gap: 25px; min-height: 44px; }
+  .project-navigation { width: calc(100% - 32px); }
+  .project-route-links { width: 100%; gap: 0 20px; }
 }
+@media (prefers-reduced-motion: reduce) { .drafting-navigation a { transition: none; } }
 </style>
