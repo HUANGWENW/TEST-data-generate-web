@@ -11,7 +11,7 @@
 
     <el-alert title="当前页面只保存 DXF 原文件，不会创建解析任务或生成边缘图。" type="info" :closable="false" show-icon class="section" />
 
-    <el-card shadow="never" class="dxf-upload-card section">
+    <el-card id="dxf-upload" shadow="never" class="dxf-upload-card section">
       <template #header><div class="card-title"><span>上传 DXF 文件</span><el-tag type="warning">待接入</el-tag></div></template>
       <el-upload accept=".dxf" :auto-upload="false" :show-file-list="false" :on-change="onUpload">
         <el-button type="primary" :icon="Upload" :loading="uploading">选择 DXF 文件</el-button>
@@ -19,7 +19,7 @@
       <div class="hint">仅接受 <code>.dxf</code> 文件。后续接入解析算法后，边缘图将作为第一步“边缘图”的输入资产。</div>
     </el-card>
 
-    <section class="section">
+    <section id="dxf-files" class="section">
       <div class="section-heading"><div><h3>已保存的 DXF</h3><div class="muted">{{ dxfAssets.length }} 个文件，均处于待解析状态。</div></div></div>
       <el-table :data="dxfAssets" v-loading="loading">
         <el-table-column prop="original_name" label="文件名" min-width="280" />
@@ -77,12 +77,12 @@ onMounted(loadAll)
 <style scoped>
 .dxf-page { max-width: 1244px; }
 .card-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 600; }
-.hint { margin-top: 16px; color: var(--studio-muted); font-size: 14px; line-height: 1.7; }
-.hint code { font-family: var(--studio-mono); }
+.hint { margin-top: 16px; color: var(--studio-muted); font-size:18px; line-height: 1.7; }
+.hint code { font-family:var(--studio-font); }
 .section-heading { margin: 28px 0 14px; }
-.section-heading h3 { margin: 0 0 6px; font: 600 23px/1.4 var(--studio-serif); }
+.section-heading h3 { margin: 0 0 6px; font:600 26px/1.4 var(--studio-font); }
 .output-contract { display: flex; gap: 14px; align-items: flex-start; padding: 18px 0; border-top: 1px solid var(--studio-border); color: var(--studio-muted); }
-.contract-icon { display: grid; flex-shrink: 0; place-items: center; width: 38px; height: 38px; border: 1px solid var(--studio-border); color: var(--studio-primary); font-size: 20px; }
+.contract-icon { display: grid; flex-shrink: 0; place-items: center; width: 38px; height: 38px; border: 1px solid var(--studio-border); color: var(--studio-primary); font-size:22px; }
 .output-contract strong { display: block; color: var(--studio-text); font-weight: 600; }
-.output-contract p { margin: 5px 0 0; font-size: 14px; line-height: 1.7; }
+.output-contract p { margin: 5px 0 0; font-size:18px; line-height: 1.7; }
 </style>

@@ -18,7 +18,7 @@
     <el-card v-if="currentStep === 1" class="task-page-card" shadow="never">
       <template #header><div class="card-title"><span>提取 Mask</span><el-tag type="info">中间产物</el-tag></div></template>
       <el-alert v-if="!inputAssets.length" title="请先在项目首页上传输入文件" type="warning" :closable="false" show-icon class="section-alert" />
-      <el-form label-width="110px" class="task-form">
+      <el-form id="mask-extract-settings" label-width="110px" class="task-form">
         <el-form-item label="输入文件"><el-select v-model="maskForm.asset_id" placeholder="选择输入文件" filterable><el-option v-for="item in inputAssets" :key="item.id" :label="item.original_name" :value="item.id" /></el-select></el-form-item>
         <el-form-item label="提取方式"><el-radio-group v-model="maskForm.mode"><el-radio-button label="extract_gen_masks">GEN 文件</el-radio-button><el-radio-button label="extract_edge_masks">边缘图</el-radio-button></el-radio-group></el-form-item>
         <template v-if="maskForm.mode === 'extract_gen_masks'">
@@ -34,16 +34,16 @@
         </template>
         <el-form-item><el-button type="primary" :icon="VideoPlay" :disabled="deletingAssets" @click="submitMaskTask">提交 Mask 提取</el-button></el-form-item>
       </el-form>
-      <AssetReview title="Mask 验收" description="勾选需要的 Mask 作为第二步输入；不需要的可单个删除，或勾选后批量删除。" :assets="maskAssets" :selected-ids="selectedMaskIds" deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="toggleMask" @select-all="selectAllMasks" @clear="clearSelectedMasks" />
+      <AssetReview id="mask-review" title="Mask 验收" description="勾选需要的 Mask 作为第二步输入；不需要的可单个删除，或勾选后批量删除。" :assets="maskAssets" :selected-ids="selectedMaskIds" deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="toggleMask" @select-all="selectAllMasks" @clear="clearSelectedMasks" />
       <div class="workflow-footer"><el-button type="primary" :icon="ArrowRight" icon-position="right" @click="nextFromMasks">进入第二步</el-button></div>
     </el-card>
 
     <el-card v-else-if="currentStep === 2" class="task-page-card" shadow="never">
       <template #header><div class="card-title"><span>Mask 生成透明零件</span><el-tag type="success">RGBA</el-tag></div></template>
       <el-alert v-if="!maskAssets.length" title="当前项目没有 Mask；可直接返回项目首页上传素材，或先执行第一步。" type="warning" :closable="false" show-icon class="section-alert" />
-      <AssetReview title="选择输入 Mask" description="只会使用当前勾选的 Mask 生成透明零件；不需要的可删除。" :assets="maskAssets" :selected-ids="selectedMaskIds" deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="toggleMask" @select-all="selectAllMasks" @clear="clearSelectedMasks" />
+      <AssetReview id="part-mask-input" title="选择输入 Mask" description="只会使用当前勾选的 Mask 生成透明零件；不需要的可删除。" :assets="maskAssets" :selected-ids="selectedMaskIds" deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="toggleMask" @select-all="selectAllMasks" @clear="clearSelectedMasks" />
       <el-divider />
-      <el-form label-width="110px" class="task-form">
+      <el-form id="part-fill-settings" label-width="110px" class="task-form">
         <el-form-item label="纹理图"><el-select v-model="partForm.texture_asset_id" placeholder="选择纹理图" filterable><el-option v-for="item in textureAssets" :key="item.id" :label="`${item.original_name} (${imageSize(item)})`" :value="item.id" /></el-select></el-form-item>
         <el-form-item label="纹理填充">
           <div class="texture-fill-control">
@@ -55,7 +55,7 @@
         <el-form-item label="输出最长边"><div class="field-with-note"><el-input-number v-model="partForm.max_side_pixels" :min="0" :step="500" :precision="0" /><span class="hint">0：保留输入 Mask 的原始尺寸和透明通道。正数：按此像素上限等比缩小，不放大。纹理填充方式不改变零件轮廓和孔洞。</span></div></el-form-item>
         <el-form-item><el-button type="primary" :icon="VideoPlay" :disabled="deletingAssets" @click="submitPartTask">生成透明零件</el-button></el-form-item>
       </el-form>
-      <AssetReview title="透明零件验收" description="勾选需要的透明零件参与合成；不需要的可单个删除，或勾选后批量删除。" :assets="partAssets" :selected-ids="selectedPartIds" checkerboard deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="togglePart" @select-all="selectAllParts" @clear="clearSelectedParts" />
+      <AssetReview id="part-review" title="透明零件验收" description="勾选需要的透明零件参与合成；不需要的可单个删除，或勾选后批量删除。" :assets="partAssets" :selected-ids="selectedPartIds" checkerboard deletable :deleting="deletingAssets" @delete="removeAssets" @toggle="togglePart" @select-all="selectAllParts" @clear="clearSelectedParts" />
       <div class="workflow-footer"><el-button type="primary" :icon="ArrowRight" icon-position="right" @click="nextFromParts">进入第三步</el-button></div>
     </el-card>
 
@@ -82,7 +82,7 @@
         class="dataset-alert"
       />
 
-      <div class="dataset-assets-card">
+      <div id="dataset-parts" class="dataset-assets-card">
         <div class="dataset-section-heading">
           <div>
             <h4>选择合成零件</h4>
@@ -107,7 +107,7 @@
       </div>
 
       <div class="dataset-layout">
-        <section class="dataset-settings-card">
+        <section id="dataset-settings" class="dataset-settings-card">
           <div class="dataset-panel-heading">
             <div class="dataset-panel-icon"><el-icon><Setting /></el-icon></div>
             <div><h4>生成设置</h4><p>必要参数</p></div>
@@ -157,7 +157,7 @@
           <el-button class="dataset-submit" type="primary" size="large" :icon="VideoPlay" :disabled="!datasetReady || deletingAssets" @click="submitDatasetTask">开始生成数据集</el-button>
         </section>
 
-        <aside class="dataset-preview-card">
+        <aside id="dataset-preview" class="dataset-preview-card">
           <div class="dataset-panel-heading dataset-preview-heading">
             <div class="dataset-panel-icon is-cyan"><el-icon><PictureFilled /></el-icon></div>
             <div><h4>随机排布与标注预览</h4><p>真实背景 · 无碰撞放置 · 坐标归一化</p></div>
@@ -368,7 +368,7 @@ watch(currentStep, loadAll); onMounted(() => { loadAll(); refreshTimer = window.
 .task-form { max-width: 980px; }
 .field-with-note { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .texture-fill-control { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 100%; }
-.hint { max-width: 460px; color: var(--studio-muted); font-size: 13px; line-height: 1.55; }
+.hint { max-width: 460px; color: var(--studio-muted); font-size:16px; line-height: 1.55; }
 .inline-range { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .workflow-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 22px; margin-top: 22px; border-top: 1px solid var(--el-border-color-light); }
 
@@ -405,12 +405,12 @@ watch(currentStep, loadAll); onMounted(() => { loadAll(); refreshTimer = window.
   border-radius: 4px;
   color: var(--dataset-primary);
   background: var(--dataset-primary-soft);
-  font-size: 20px;
+  font-size:22px;
 }
 
 .dataset-hero-copy { min-width: 0; }
 .dataset-hero p,
-.dataset-panel-heading p { margin: 0; color: var(--dataset-muted); font-size: 13px; line-height: 1.5; }
+.dataset-panel-heading p { margin: 0; color: var(--dataset-muted); font-size:16px; line-height: 1.5; }
 .dataset-hero-status { display: flex; justify-content: flex-end; gap: 8px; margin-left: auto; flex-wrap: wrap; }
 .dataset-alert { margin-bottom: 16px; border-radius: 4px; }
 
@@ -426,9 +426,9 @@ watch(currentStep, loadAll); onMounted(() => { loadAll(); refreshTimer = window.
 .dataset-assets-card { padding: 20px; margin-bottom: 16px; }
 .dataset-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .dataset-section-heading h4,
-.dataset-panel-heading h4 { margin: 0; font: 600 22px/1.4 var(--studio-serif); }
-.dataset-section-summary { color: var(--dataset-muted); font-size: 13px; }
-.dataset-section-summary strong { color: var(--dataset-primary); font-size: 17px; }
+.dataset-panel-heading h4 { margin: 0; font:600 26px/1.4 var(--studio-font); }
+.dataset-section-summary { color: var(--dataset-muted); font-size:16px; }
+.dataset-section-summary strong { color: var(--dataset-primary); font-size:20px; }
 .dataset-assets-card :deep(.asset-review) { margin-top: 14px; }
 .dataset-assets-card :deep(.review-header) { margin-bottom: 10px; }
 .dataset-assets-card :deep(.asset-grid) { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); max-height: 248px; }
@@ -449,22 +449,22 @@ watch(currentStep, loadAll); onMounted(() => { loadAll(); refreshTimer = window.
 .dataset-panel-icon.is-cyan { color: var(--studio-primary); background: var(--studio-primary-soft); }
 
 .dataset-form :deep(.el-form-item) { margin-bottom: 16px; }
-.dataset-form :deep(.el-form-item__label) { padding-bottom: 7px; color: #475044; font-size: 13px; font-weight: 600; line-height: 1.3; }
+.dataset-form :deep(.el-form-item__label) { padding-bottom: 7px; color: #475044; font-size:16px; font-weight: 600; line-height: 1.3; }
 .dataset-form :deep(.el-select),
 .dataset-form :deep(.el-input-number) { width: 100%; }
 .dataset-form :deep(.el-input__wrapper) { min-height: 40px; border-radius: 4px; box-shadow: 0 0 0 1px var(--studio-border) inset; }
 .dataset-form :deep(.el-input__wrapper.is-focus) { box-shadow: 0 0 0 1px var(--dataset-primary) inset, 0 0 0 3px rgb(168 91 33 / 10%); }
-.dataset-field-note { display: flex; align-items: center; gap: 5px; margin-top: 7px; color: #4e785c; font-size: 13px; }
+.dataset-field-note { display: flex; align-items: center; gap: 5px; margin-top: 7px; color: #4e785c; font-size:16px; }
 .dataset-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
 .dataset-range { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 6px; width: 100%; }
 .dataset-range :deep(.el-input-number) { min-width: 0; }
 .dataset-range > span { color: #73796b; }
 
-.dataset-subsection-title { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 10px; font-size: 13px; font-weight: 700; }
+.dataset-subsection-title { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 10px; font-size:16px; font-weight: 700; }
 .dataset-subsection-title small { color: var(--dataset-muted); font-weight: 400; }
 .dataset-margin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .dataset-margin-field { display: block; padding: 9px; border: 1px solid var(--el-border-color-light); border-radius: 4px; background: var(--studio-bg); }
-.dataset-margin-field > span { display: block; margin-bottom: 6px; color: var(--dataset-muted); font-size: 13px; }
+.dataset-margin-field > span { display: block; margin-bottom: 6px; color: var(--dataset-muted); font-size:16px; }
 .dataset-margin-field :deep(.el-input__wrapper) { padding-left: 6px; padding-right: 30px; background: var(--studio-surface); }
 
 .dataset-advanced { margin-top: 18px; border-top: 1px solid var(--el-border-color-light); border-bottom: 1px solid var(--el-border-color-light); }
@@ -477,12 +477,12 @@ watch(currentStep, loadAll); onMounted(() => { loadAll(); refreshTimer = window.
 
 .dataset-preflight { padding: 14px; margin-top: 18px; border: 1px solid #e2d4ba; border-radius: 4px; background: #f7f0e3; }
 .dataset-preflight.is-ready { border-color: #ccdcd0; background: #edf3ee; }
-.dataset-preflight-title { display: flex; align-items: center; gap: 7px; color: #9c6b24; font-size: 13px; font-weight: 700; }
+.dataset-preflight-title { display: flex; align-items: center; gap: 7px; color: #9c6b24; font-size:16px; font-weight: 700; }
 .dataset-preflight.is-ready .dataset-preflight-title { color: #4e785c; }
 .dataset-preflight ul { display: grid; gap: 7px; padding: 0; margin: 12px 0 0; list-style: none; }
-.dataset-preflight li { display: grid; grid-template-columns: 18px minmax(80px, auto) 1fr; align-items: center; color: #9c6b24; font-size: 13px; }
+.dataset-preflight li { display: grid; grid-template-columns: 18px minmax(80px, auto) 1fr; align-items: center; color: #9c6b24; font-size:16px; }
 .dataset-preflight li.pass { color: #4e785c; }
-.dataset-preflight li > span { display: grid; width: 15px; height: 15px; place-items: center; border-radius: 50%; color: #fff; background: #d97706; font-size: 9px; font-weight: 700; }
+.dataset-preflight li > span { display: grid; width: 15px; height: 15px; place-items: center; border-radius: 50%; color: #fff; background: #d97706; font-size:16px; font-weight: 700; }
 .dataset-preflight li.pass > span { background: #4e785c; }
 .dataset-preflight li small { justify-self: end; color: var(--dataset-muted); }
 .dataset-submit { width: 100%; height: 48px; margin-top: 16px; border-radius: 4px; font-weight: 700; }
@@ -498,17 +498,17 @@ watch(currentStep, loadAll); onMounted(() => { loadAll(); refreshTimer = window.
   background: #252a30;
 }
 .dataset-preview-frame > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.dataset-preview-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #73796b; font-size: 13px; }
-.dataset-preview-empty .el-icon { font-size: 32px; }
+.dataset-preview-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #73796b; font-size:16px; }
+.dataset-preview-empty .el-icon { font-size:36px; }
 .dataset-valid-area { position: absolute; z-index: 1; min-width: 2px; min-height: 2px; pointer-events: none; border: 2px dashed #22d3ee; background: rgb(34 211 238 / 5%); box-shadow: 0 0 0 1px rgb(255 255 255 / 35%) inset; }
 .dataset-valid-area.invalid { border-color: #ef4444; background: rgb(239 68 68 / 10%); }
-.dataset-valid-area span { position: absolute; top: 6px; left: 7px; padding: 3px 6px; border-radius: 4px; color: #ecfeff; background: rgb(8 145 178 / 88%); font-size: 13px; max-width: calc(100% - 14px); white-space: normal; overflow-wrap: anywhere; }
+.dataset-valid-area span { position: absolute; top: 6px; left: 7px; padding: 3px 6px; border-radius: 4px; color: #ecfeff; background: rgb(8 145 178 / 88%); font-size:16px; max-width: calc(100% - 14px); white-space: normal; overflow-wrap: anywhere; }
 .dataset-preview-part { position: absolute; z-index: 2; height: 20%; border: 2px solid #22d3ee; background: rgb(255 255 255 / 5%); box-shadow: 0 4px 12px rgb(15 23 42 / 35%); }
 .dataset-preview-part:nth-of-type(even) { border-color: #f59e0b; }
 .dataset-preview-part > img { width: 100%; height: 100%; object-fit: contain; }
-.dataset-preview-part > span { position: absolute; top: -21px; left: -2px; padding: 2px 5px; color: #fff; background: #0891b2; font: 12px/1.5 var(--studio-mono); white-space: nowrap; }
+.dataset-preview-part > span { position: absolute; top: -21px; left: -2px; padding: 2px 5px; color: #fff; background: #0891b2; font:16px/1.5 var(--studio-font); white-space: nowrap; }
 .dataset-preview-part:nth-of-type(even) > span { background: #d97706; }
-.dataset-preview-legend { display: flex; align-items: center; gap: 16px; padding: 11px 12px; margin-top: 10px; border-radius: 4px; color: var(--dataset-muted); background: var(--studio-bg); font-size: 13px; }
+.dataset-preview-legend { display: flex; align-items: center; gap: 16px; padding: 11px 12px; margin-top: 10px; border-radius: 4px; color: var(--dataset-muted); background: var(--studio-bg); font-size:16px; }
 .dataset-preview-legend span { display: flex; align-items: center; gap: 6px; }
 .dataset-preview-legend i { width: 16px; height: 3px; border-radius: 999px; }
 .legend-cyan { background: #22d3ee; }
@@ -518,17 +518,17 @@ watch(currentStep, loadAll); onMounted(() => { loadAll(); refreshTimer = window.
 .dataset-flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
 .dataset-flow-node { position: relative; min-width: 0; padding: 10px; border-radius: 4px; background: var(--studio-bg); }
 .dataset-flow-node.active { color: var(--dataset-primary); background: var(--dataset-primary-soft); }
-.dataset-flow-node span { display: block; overflow: hidden; color: var(--dataset-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.dataset-flow-node strong { display: block; margin-top: 4px; font-size: 17px; }
+.dataset-flow-node span { display: block; overflow: hidden; color: var(--dataset-muted); font-size:16px; text-overflow: ellipsis; white-space: nowrap; }
+.dataset-flow-node strong { display: block; margin-top: 4px; font-size:20px; }
 .dataset-flow-node i { position: absolute; top: 24px; right: -8px; z-index: 1; color: #73796b; font-style: normal; }
 .dataset-contract { padding: 13px; margin-top: 14px; border-radius: 4px; background: #252a30; }
 .dataset-contract :deep(.el-tag) { color: #eee9dc; border-color: #76776b; background: transparent; }
-.dataset-contract > div { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; color: #d5d1c5; font-size: 13px; }
-.dataset-contract code { display: block; overflow-wrap: anywhere; color: #eee9dc; font: 13px/1.7 var(--studio-mono); }
+.dataset-contract > div { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; color: #d5d1c5; font-size:16px; }
+.dataset-contract code { display: block; overflow-wrap: anywhere; color: #eee9dc; font:16px/1.7 var(--studio-font); }
 .dataset-run-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
 .dataset-run-summary > div { padding: 11px; border: 1px solid var(--el-border-color-light); border-radius: 4px; }
-.dataset-run-summary span { display: block; color: var(--dataset-muted); font-size: 13px; }
-.dataset-run-summary strong { display: block; margin-top: 5px; font: 14px/1.6 var(--studio-mono); }
+.dataset-run-summary span { display: block; color: var(--dataset-muted); font-size:16px; }
+.dataset-run-summary strong { display: block; margin-top: 5px; font:18px/1.6 var(--studio-font); }
 .dataset-footer { margin-top: 16px; }
 
 @media (max-width: 1180px) {
@@ -556,15 +556,15 @@ watch(currentStep, loadAll); onMounted(() => { loadAll(); refreshTimer = window.
 }
 .workflow-steps :deep(.el-step) { outline-offset: 5px; }
 .workflow-steps :deep(.el-step:focus-visible) { outline: 2px solid var(--studio-primary); }
-.workflow-steps :deep(.el-step__title) { font-size: 14px; line-height: 1.6; margin-top: 6px; }
+.workflow-steps :deep(.el-step__title) { font-size:18px; line-height: 1.6; margin-top: 6px; }
 .task-form :deep(.el-select) { width: min(100%, 560px); }
 .texture-fill-control :deep(.el-radio-group) { display: flex; flex-wrap: wrap; }
-.dataset-flow-node strong, .dataset-section-summary strong, .dataset-preview-legend strong { font-family: var(--studio-mono); }
-.dataset-preflight li small { text-align: right; font-size: 13px; overflow-wrap: anywhere; }
+.dataset-flow-node strong, .dataset-section-summary strong, .dataset-preview-legend strong { font-family:var(--studio-font); }
+.dataset-preflight li small { text-align: right; font-size:16px; overflow-wrap: anywhere; }
 .dataset-preview-legend { flex-wrap: wrap; }
-.dataset-collapse-title small { font-size: 13px; }
+.dataset-collapse-title small { font-size:16px; }
 @media (max-width: 700px) {
-  .workflow-steps :deep(.el-step__title) { padding-right: 10px; font-size: 13px; }
+  .workflow-steps :deep(.el-step__title) { padding-right: 10px; font-size:16px; }
   .dataset-hero-status { margin-left: 0; }
   .task-form :deep(.el-form-item) { display: block; }
   .task-form :deep(.el-form-item__label) { width: auto !important; justify-content: flex-start; height: auto; padding: 0 0 8px; line-height: 1.6; }

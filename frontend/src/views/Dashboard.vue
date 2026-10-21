@@ -99,27 +99,27 @@ onMounted(load)
 </script>
 
 <style scoped>
-.page-kicker { color: #2563eb; font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+.page-kicker { color: #2563eb; font-size:16px; font-weight: 700; letter-spacing: .14em; }
 .dashboard-toolbar { align-items: center; }
 .dashboard-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
 .stat-card { display: flex; align-items: center; gap: 14px; min-height: 104px; padding: 18px; border: 1px solid #dce3ec; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgb(15 23 42 / 4%); }
-.stat-icon { display: grid; flex: 0 0 auto; width: 42px; height: 42px; place-items: center; border-radius: 10px; color: #2563eb; background: #eff6ff; font-size: 20px; }
+.stat-icon { display: grid; flex: 0 0 auto; width: 42px; height: 42px; place-items: center; border-radius: 10px; color: #2563eb; background: #eff6ff; font-size:22px; }
 .stat-icon.is-green { color: #16a34a; background: #f0fdf4; }
 .stat-icon.is-cyan { color: #0891b2; background: #ecfeff; }
-.stat-card span,.stat-card small,.project-name small { display: block; color: #64748b; font-size: 11px; }
-.stat-card strong { display: inline-block; margin: 2px 7px 1px 0; color: #172033; font-size: 26px; }
+.stat-card span,.stat-card small,.project-name small { display: block; color: #64748b; font-size:16px; }
+.stat-card strong { display: inline-block; margin: 2px 7px 1px 0; color: #172033; font-size:30px; }
 .stat-card small { display: inline; }
 .projects-panel { padding: 20px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgb(15 23 42 / 4%); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-.panel-heading h3 { margin: 0 0 5px; font-size: 17px; }
-.panel-heading p { margin: 0; color: #64748b; font-size: 12px; }
+.panel-heading h3 { margin: 0 0 5px; font-size:20px; }
+.panel-heading p { margin: 0; color: #64748b; font-size:16px; }
 .projects-panel :deep(.el-table) { box-shadow: none; }
 .project-name { display: flex; align-items: center; gap: 11px; }
 .project-name > span { display: grid; flex: 0 0 auto; width: 36px; height: 36px; place-items: center; border-radius: 9px; color: #2563eb; background: #eff6ff; font-weight: 700; }
 .project-name strong,.project-name small { display: block; }
 .project-name small { margin-top: 2px; }
 .project-description { color: #64748b; }
-.dialog-hint { padding: 11px 13px; margin-bottom: 18px; border-radius: 8px; color: #1d4ed8; background: #eff6ff; font-size: 12px; }
+.dialog-hint { padding: 11px 13px; margin-bottom: 18px; border-radius: 8px; color: #1d4ed8; background: #eff6ff; font-size:16px; }
 
 @media(max-width: 820px) { .dashboard-stats { grid-template-columns: 1fr; } .panel-heading { align-items: flex-start; flex-direction: column; } }
 </style>

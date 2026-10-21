@@ -24,7 +24,7 @@
       </div>
     </div>
 
-    <el-card shadow="never" class="run-selector section">
+    <el-card id="gallery-batches" shadow="never" class="run-selector section">
       <el-form inline>
         <el-form-item label="数据集批次">
           <el-select v-model="selectedDatasetId" placeholder="选择一次已完成的数据生成" filterable @change="loadFiles">
@@ -39,6 +39,7 @@
       </el-form>
     </el-card>
 
+    <section id="gallery-results">
     <el-empty v-if="!datasetRuns.length && !loading" description="暂无已完成的数据集，请先执行第三步" />
     <el-empty v-else-if="gallery && !gallery.files.length" description="该批次尚未找到生成图像" />
     <div v-else v-loading="loading" class="gallery-grid">
@@ -61,6 +62,8 @@
     <div v-if="gallery?.files.length" class="pagination-wrap">
       <el-pagination v-model:current-page="currentPage" :page-size="pageSize" :total="gallery.files.length" layout="total, prev, pager, next" background />
     </div>
+
+    </section>
 
     <el-dialog v-model="imageDialogVisible" :title="activeFile?.file_name || '图片预览'" width="min(960px, 92vw)">
       <img v-if="activeFile" class="dialog-image" :src="activeFile.image_url" :alt="activeFile.file_name" />
@@ -161,13 +164,13 @@ onMounted(loadRuns)
 .result-card { min-width: 0; }
 .image-button { display: block; width: 100%; padding: 8px; border: 1px solid var(--el-border-color-light); background: var(--studio-bg); cursor: zoom-in; }
 .image-button img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain; }
-.result-name { margin: 13px 0 12px; font: 13px/1.6 var(--studio-mono); overflow-wrap: anywhere; color: #475044; }
+.result-name { margin: 13px 0 12px; font:16px/1.6 var(--studio-font); overflow-wrap: anywhere; color: #475044; }
 .result-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 12px; border-top: 1px solid var(--el-border-color-light); }
 .result-actions :deep(.el-button) { width: 38px; border-radius: 3px; margin: 0; justify-self: center; }
 .pagination-wrap { display: flex; justify-content: center; margin: 28px 0; }
 .dialog-image { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; margin: auto; }
 .text-viewer { min-height: 180px; max-height: 65vh; overflow: auto; background: #252a30; border-radius: 3px; padding: 18px; }
-.text-viewer pre { margin: 0; color: #eee9dc; font: 13px/1.7 var(--studio-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.text-viewer pre { margin: 0; color: #eee9dc; font:16px/1.7 var(--studio-font); white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 700px) {
   .run-selector :deep(.el-form) { display: block; }
   .run-selector :deep(.el-form-item) { display: block; margin-bottom: 12px; }

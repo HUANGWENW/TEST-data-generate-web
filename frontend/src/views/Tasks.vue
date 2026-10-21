@@ -70,21 +70,21 @@ onUnmounted(() => { if (timer) window.clearInterval(timer) })
 .task-stat i.succeeded { background: #4e785c; }
 .task-stat i.failed { background: #a34e43; }
 .task-stat span, .task-stat strong { display: block; }
-.task-stat span { color: var(--studio-muted); font-size: 13px; }
-.task-stat strong { margin-top: 3px; color: var(--studio-text); font: 26px/1.4 var(--studio-mono); }
+.task-stat span { color: var(--studio-muted); font-size:16px; }
+.task-stat strong { margin-top: 3px; color: var(--studio-text); font:30px/1.4 var(--studio-font); }
 .tasks-panel { padding: 22px; border: 1px solid var(--studio-border); border-radius: 4px; background: var(--studio-surface); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-.panel-heading h3 { margin: 0 0 5px; font: 600 23px/1.4 var(--studio-serif); }
-.panel-heading p { margin: 0; color: var(--studio-muted); font-size: 13px; }
+.panel-heading h3 { margin: 0 0 5px; font:600 26px/1.4 var(--studio-font); }
+.panel-heading p { margin: 0; color: var(--studio-muted); font-size:16px; }
 .task-name { display: flex; align-items: center; gap: 12px; }
 .task-icon { display: grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; border: 1px solid var(--studio-border); border-radius: 3px; color: var(--studio-primary); background: var(--studio-bg); }
 .task-name strong, .task-name small { display: block; }
-.task-name small, .task-progress small, .task-result span, .task-placeholder { margin-top: 4px; color: var(--studio-muted); font-size: 13px; line-height: 1.7; }
-.task-name small { font-family: var(--studio-mono); }
+.task-name small, .task-progress small, .task-result span, .task-placeholder { margin-top: 4px; color: var(--studio-muted); font-size:16px; line-height: 1.7; }
+.task-name small { font-family:var(--studio-font); }
 .task-progress :deep(.el-progress-bar__outer) { background: #ebe7dc; }
 .task-result { display: flex; flex-direction: column; align-items: flex-start; }
 .task-result .el-button { min-height: auto; padding: 0; }
-.task-error { color: #a34e43; font-size: 13px; overflow-wrap: anywhere; }
+.task-error { color: #a34e43; font-size:16px; overflow-wrap: anywhere; }
 @media (max-width: 700px) {
   .task-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .task-stat, .task-stat:first-child { padding: 14px 16px; }

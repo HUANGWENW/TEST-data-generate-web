@@ -91,9 +91,9 @@ async function onDrop(event) {
 .asset-dropzone { min-height: 190px; padding: 24px 14px; border: 1px dashed #b7b2a4; border-radius: 3px; background: var(--studio-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; transition: border-color 150ms ease, background-color 150ms ease; }
 .asset-dropzone.is-dragover { border-color: var(--studio-primary); background: var(--studio-primary-soft); outline: 2px solid #d1a47f; outline-offset: 3px; }
 .asset-dropzone.is-loading { opacity: .78; }
-.dropzone-icon { margin-bottom: 10px; color: var(--studio-primary); font-size: 28px; }
-.asset-dropzone strong { color: var(--studio-text); font-size: 14px; font-weight: 600; }
-.asset-dropzone span { margin-top: 5px; color: var(--studio-muted); font-size: 13px; }
+.dropzone-icon { margin-bottom: 10px; color: var(--studio-primary); font-size:30px; }
+.asset-dropzone strong { color: var(--studio-text); font-size:18px; font-weight: 600; }
+.asset-dropzone span { margin-top: 5px; color: var(--studio-muted); font-size:16px; }
 .dropzone-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
 .dropzone-actions :deep(.el-button) { min-height: 40px; padding-inline: 12px; }
 .hidden-input { display: none; }
