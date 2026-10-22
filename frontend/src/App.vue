@@ -1,5 +1,5 @@
 <template>
-  <div class="drafting-shell">
+  <div class="drafting-shell" :inert="introActive || undefined" :aria-hidden="introActive ? 'true' : undefined">
     <header class="drafting-header">
       <router-link to="/" class="drafting-brand" aria-label="零件数据，项目总览">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 8V4h4m8 0h4v4M4 16v4h4m8 0h4v-4M8 8h8v8H8z" /></svg>
@@ -15,12 +15,38 @@
     <ProjectNavigation v-if="projectRoot" :root="projectRoot" />
     <main class="route-workspace"><router-view /></main>
   </div>
+  <StartupIntro v-if="introActive" :still-at="introStillAt" @finish="finishIntro" />
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import ProjectNavigation from './components/ProjectNavigation.vue'
+import StartupIntro from './components/StartupIntro.vue'
+
+const introSessionKey = 'parts-data:startup:v1'
+const introQuery = new URLSearchParams(window.location.search)
+const introPreview = introQuery.get('intro') === 'preview'
+const requestedFrame = Number(introQuery.get('introFrame'))
+const introStillAt = introPreview && introQuery.has('introFrame') && Number.isFinite(requestedFrame)
+  ? Math.min(1800, Math.max(0, requestedFrame)) : null
+
+function shouldShowIntro() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
+  if (introPreview) return true
+  try { return window.sessionStorage.getItem(introSessionKey) !== 'seen' }
+  catch { return true }
+}
+
+const introActive = ref(shouldShowIntro())
+
+async function finishIntro() {
+  const restoreFocus = document.activeElement?.closest('.startup-intro')
+  introActive.value = false
+  try { window.sessionStorage.setItem(introSessionKey, 'seen') } catch { /* Storage can be disabled. */ }
+  await nextTick()
+  if (restoreFocus) document.querySelector('.drafting-brand')?.focus({ preventScroll: true })
+}
 
 const route = useRoute()
 const projectRoot = computed(() => route.params.id ? `/projects/${encodeURIComponent(String(route.params.id))}` : '')
