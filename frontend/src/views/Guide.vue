@@ -1,246 +1,261 @@
 <template>
   <div class="page guide-page">
-    <div class="toolbar">
-      <div>
-        <h2>使用指引</h2>
-        <div class="muted">按素材、Mask、透明零件、合成数据集的顺序完成一次生成，也可从已有 Mask 或透明零件直接开始。</div>
+    <header class="guide-header">
+      <div><h1>使用指引</h1><p>选好起点，按顺序生成并下载数据。</p></div>
+      <router-link class="guide-start" to="/">打开项目总览 <span aria-hidden="true">→</span></router-link>
+    </header>
+
+    <fieldset class="guide-entry">
+      <legend>你现在有什么素材？</legend>
+      <select v-model="entry" class="guide-mobile-entry" aria-label="选择素材起点" @change="updateEntry">
+        <option v-for="option in entryOptions" :key="option.id" :value="option.id">{{ option.title }} · {{ option.hint }}</option>
+      </select>
+      <div class="guide-options" :style="{ '--entry-index': entryIndex }">
+        <span class="guide-option-indicator" aria-hidden="true"></span>
+        <label v-for="option in entryOptions" :key="option.id" class="guide-option" :class="{ selected: entry === option.id }">
+          <input v-model="entry" type="radio" name="guide-entry" :value="option.id" :aria-label="option.title" @change="updateEntry" />
+          <span class="guide-option-copy"><strong>{{ option.title }}</strong><span>{{ option.hint }}</span></span>
+          <span class="guide-option-check" aria-hidden="true">{{ entry === option.id ? '✓' : '' }}</span>
+        </label>
       </div>
-      <el-button type="primary" :icon="FolderOpened" @click="$router.push('/')">进入项目</el-button>
+    </fieldset>
+
+    <div class="guide-preparation" role="status" aria-live="polite" aria-atomic="true">
+      <strong>需要准备</strong><span>{{ currentEntry.materials }}</span>
+      <span v-if="entry !== 'full'" class="guide-shortcut">{{ currentEntry.shortcut }}</span>
     </div>
 
-    <section class="guide-overview" aria-label="生成流程总览">
-      <div class="overview-copy"><span class="eyebrow">推荐顺序</span><h3>从来源文件到可阅览的数据集</h3><p>每一步完成后先检查并勾选合格结果，再进入下一步。</p></div>
-      <div class="overview-flow">
-        <template v-for="(item, index) in flowItems" :key="item.number">
-          <div class="overview-node"><span>{{ item.number }}</span><strong>{{ item.title }}</strong><small>{{ item.output }}</small></div>
-          <el-icon v-if="index < flowItems.length - 1" class="overview-arrow"><ArrowRight /></el-icon>
-        </template>
-      </div>
-    </section>
-
-    <section class="guide-list" aria-label="分步操作说明">
-      <article class="guide-step source-step">
-        <div class="step-copy">
-          <div class="step-kicker"><span>准备</span><em>01</em></div>
-          <h3>上传并整理素材</h3>
-          <p>在项目首页先准备来源文件、背景图和纹理图。已有黑白 Mask 时，选择“已有 Mask”即可跳过第一步。</p>
-          <ol class="action-list">
-            <li><b>入口</b><span>项目首页的“素材上传”。</span></li>
-            <li><b>选择</b><span>GEN 文件或白色边缘图；也可切换为已有 Mask。</span></li>
-            <li><b>上传</b><span>背景图会显示像素尺寸，文件夹按钮可批量添加来源文件。</span></li>
-          </ol>
-          <div class="step-result"><el-icon><CircleCheck /></el-icon><span>输出：可在后续步骤选择的输入、Mask、背景和纹理资产。</span></div>
-        </div>
-        <div class="guide-visual source-visual" role="img" aria-label="素材上传界面示意">
-          <div class="mock-window">
-            <div class="mock-titlebar"><i></i><i></i><i></i><span>素材上传</span></div>
-            <div class="mock-body">
-              <div class="mock-tabs"><span class="selected">第一步：GEN / 边缘图</span><span>已有 Mask</span></div>
-              <div class="mock-upload"><div class="file-token">GEN</div><div><strong>选择输入文件</strong><small>支持文件夹批量上传</small></div><button type="button" tabindex="-1" aria-hidden="true">上传</button></div>
-              <div class="mock-assets"><span>背景图</span><span>纹理图</span><span>DXF 预处理</span></div>
+    <div class="guide-layout">
+      <section class="guide-process" aria-labelledby="guide-process-title">
+        <div class="guide-section-heading"><h2 id="guide-process-title">{{ currentEntry.flowTitle }}</h2><span>{{ visibleSteps.length }} 步完成</span></div>
+        <ol class="guide-flow">
+          <li v-for="(step, index) in visibleSteps" :key="step.id" class="guide-step">
+            <span class="guide-step-number" aria-hidden="true">{{ index + 1 }}</span>
+            <div class="guide-step-copy">
+              <div class="guide-step-heading"><h3>{{ step.title }}</h3><span class="guide-step-location">{{ step.location }}</span></div>
+              <p v-for="line in step.lines" :key="line"><span v-for="(piece, pieceIndex) in instructionParts(line)" :key="pieceIndex" :class="{ 'guide-control-name': piece.startsWith('「') && piece.length <= 12 }">{{ piece }}</span></p>
+              <p v-if="step.note" class="guide-step-note">{{ step.note }}</p>
+              <div class="guide-visuals" :class="{ 'is-formula': step.formula, 'is-collection': step.id === 'prepare' }" :style="{ '--visual-count': step.visuals.length }" :aria-label="step.visualLabel">
+                <figure v-for="(visual, visualIndex) in step.visuals" :key="visual.id" class="guide-visual" :class="{ 'is-output': step.formula && visualIndex === 2 }">
+                  <span v-if="(step.formula || step.id === 'mask') && visualIndex" class="guide-visual-connector" aria-hidden="true">{{ step.formula && visualIndex === 1 ? '+' : '→' }}</span>
+                  <button type="button" class="guide-photo" :class="{ 'is-transparent': visual.id === 'part', 'is-screen': visual.id === 'download' }" :aria-label="'放大查看：' + visual.label" @click="openPicture(visual)">
+                    <img :src="visual.src" :alt="visual.alt" :width="visual.width" :height="visual.height" loading="lazy" decoding="async" />
+                    <span class="guide-photo-zoom" aria-hidden="true">↗</span>
+                  </button>
+                  <figcaption>{{ visual.label }}</figcaption>
+                </figure>
+              </div>
             </div>
-          </div>
-          <div class="callout callout-one"><b>1</b><span>选来源</span></div>
-          <div class="callout callout-two"><b>2</b><span>选类型</span></div>
-          <div class="callout callout-three"><b>3</b><span>上传</span></div>
-        </div>
-      </article>
+          </li>
+        </ol>
+        <div class="guide-finish"><span>完成后，可随时回到项目继续生成新批次。</span><router-link to="/tasks">查看任务进度 <span aria-hidden="true">→</span></router-link></div>
+      </section>
 
-      <article class="guide-step mask-step">
-        <div class="step-copy">
-          <div class="step-kicker"><span>第一步</span><em>02</em></div>
-          <h3>提取并验收 Mask</h3>
-          <p>从 GEN 文件或边缘图中提取轮廓。边缘图模式只需根据图像断线情况调整膨胀核，默认值适合大多数输入。</p>
-          <ol class="action-list">
-            <li><b>入口</b><span>生成流程中的“1. 提取 Mask”。</span></li>
-            <li><b>提取</b><span>选择输入文件和提取方式，然后提交 Mask 提取任务。</span></li>
-            <li><b>验收</b><span>保留外轮廓完整、内部孔洞正确的 Mask，不需要的可取消勾选或删除。</span></li>
-          </ol>
-          <div class="step-result"><el-icon><CircleCheck /></el-icon><span>输出：已勾选的 Mask，可直接进入第二步。</span></div>
-        </div>
-        <div class="guide-visual mask-visual" role="img" aria-label="Mask 提取与验收界面示意">
-          <div class="mock-window">
-            <div class="mock-titlebar"><i></i><i></i><i></i><span>提取 Mask</span></div>
-            <div class="mock-body">
-              <div class="mask-controls"><span class="input-bar">选择输入文件</span><span class="mode-chip selected">GEN 文件</span><span class="mode-chip">边缘图</span><button type="button" tabindex="-1" aria-hidden="true">提交提取</button></div>
-              <div class="mask-review"><div class="mask-tile checked"><i class="mask-shape shape-a"></i><b>✓</b></div><div class="mask-tile checked"><i class="mask-shape shape-b"></i><b>✓</b></div><div class="mask-tile"><i class="mask-shape shape-c"></i></div></div>
-            </div>
-          </div>
-          <div class="callout callout-one"><b>1</b><span>选方式</span></div>
-          <div class="callout callout-two"><b>2</b><span>提交提取</span></div>
-          <div class="callout callout-three"><b>3</b><span>勾选合格 Mask</span></div>
-        </div>
-      </article>
-
-      <article class="guide-step part-step">
-        <div class="step-copy">
-          <div class="step-kicker"><span>第二步</span><em>03</em></div>
-          <h3>生成并筛选透明零件</h3>
-          <p>将选中的 Mask 与纹理图组合成 RGBA 零件。纹理尺寸较小时，可选原尺寸裁剪/平铺，或拉伸宽高填满轮廓。</p>
-          <ol class="action-list">
-            <li><b>入口</b><span>生成流程中的“2. 生成透明零件”。</span></li>
-            <li><b>选择</b><span>勾选 Mask 和纹理图，选择裁剪/平铺或拉伸宽高，并设置输出最长边。</span></li>
-            <li><b>验收</b><span>在棋盘格预览中保留边缘干净、纹理合适的透明零件。</span></li>
-          </ol>
-          <div class="step-result"><el-icon><CircleCheck /></el-icon><span>输出：已勾选的 RGBA 零件，可直接用于合成。</span></div>
-        </div>
-        <div class="guide-visual part-visual" role="img" aria-label="透明零件生成与验收界面示意">
-          <div class="mock-window">
-            <div class="mock-titlebar"><i></i><i></i><i></i><span>生成透明零件</span></div>
-            <div class="mock-body part-body">
-              <div class="texture-swatch"><span>纹理图</span></div><el-icon class="conversion-arrow"><ArrowRight /></el-icon><div class="rgba-piece"><i></i></div>
-              <div class="part-options"><span>纹理填充</span><em>拉伸宽高</em><button type="button" tabindex="-1" aria-hidden="true">生成透明零件</button></div>
-              <div class="part-review"><div class="piece-tile selected"><i></i><b>✓</b></div><div class="piece-tile"><i></i></div><div class="piece-tile"><i></i></div></div>
-            </div>
-          </div>
-          <div class="callout callout-one"><b>1</b><span>选纹理</span></div>
-          <div class="callout callout-two"><b>2</b><span>生成 RGBA</span></div>
-          <div class="callout callout-three"><b>3</b><span>筛选零件</span></div>
-        </div>
-      </article>
-
-      <article class="guide-step dataset-step">
-        <div class="step-copy">
-          <div class="step-kicker"><span>第三步</span><em>04</em></div>
-          <h3>合成数据并阅览结果</h3>
-          <p>选择背景、零件和标签格式后创建任务。边距预览中的青色虚线框就是零件能够放置的范围；完成后进入图库查看图片与 TXT。</p>
-          <ol class="action-list">
-            <li><b>选择</b><span>设置背景、YOLO/COCO 标签、布局、数量、旋转和缩放范围。</span></li>
-            <li><b>预览</b><span>调整上下、左右边距，确认背景中的青色可放置区域。</span></li>
-            <li><b>阅览</b><span>在任务中心或结果图库下载合成图、标签 TXT 和生成信息 TXT。</span></li>
-          </ol>
-          <div class="step-result"><el-icon><CircleCheck /></el-icon><span>输出：合成图片、标签、逐图生成信息和可下载的索引文件。</span></div>
-        </div>
-        <div class="guide-visual dataset-visual" role="img" aria-label="数据集合成与结果阅览界面示意">
-          <div class="mock-window">
-            <div class="mock-titlebar"><i></i><i></i><i></i><span>合成数据集与标签</span></div>
-            <div class="mock-body dataset-body">
-              <div class="dataset-form"><span>背景图</span><span>YOLO HBB</span><span>随机放置</span><button type="button" tabindex="-1" aria-hidden="true">生成数据集</button></div>
-              <div class="placement-demo"><div class="safe-area"><i></i><b></b><em></em><small>可放置区域</small></div></div>
-              <div class="output-files"><div class="output-image"><i></i></div><span>synthetic.jpg</span><span>labels.txt</span><span>metadata.txt</span></div>
-            </div>
-          </div>
-          <div class="callout callout-one"><b>1</b><span>设定参数</span></div>
-          <div class="callout callout-two"><b>2</b><span>查看放置区域</span></div>
-          <div class="callout callout-three"><b>3</b><span>阅览与下载</span></div>
-        </div>
-      </article>
-    </section>
-
-    <section class="guide-note">
-      <el-icon><InfoFilled /></el-icon><span>任务中心显示进度和各阶段耗时；数据生成完成后，可在结果图库中逐张预览并下载合成图、标签 TXT 和生成信息 TXT。</span>
-    </section>
+      <aside class="guide-help" aria-labelledby="guide-help-title">
+        <h2 id="guide-help-title">需要时再看</h2>
+        <details class="guide-answer">
+          <summary>标签格式怎么选？<span aria-hidden="true">+</span></summary>
+          <div class="guide-answer-body"><dl><div><dt>YOLO HBB</dt><dd>普通矩形检测框。</dd></div><div><dt>YOLO OBB</dt><dd>随零件方向旋转的检测框。</dd></div><div><dt>COCO Segmentation</dt><dd>分割轮廓标注。</dd></div></dl><p>当前结果页支持下载 YOLO 标签 TXT，暂不提供 COCO JSON 下载入口。</p></div>
+        </details>
+        <details class="guide-answer">
+          <summary>纹理与零件尺寸怎么设？<span aria-hidden="true">+</span></summary>
+          <div class="guide-answer-body"><p>「原尺寸裁剪/平铺」保留纹理像素，纹理不够大时重复平铺。「拉伸宽高」用整张纹理填满轮廓，纹理比例可能改变。</p><p>「输出最长边」填 0 保留 Mask 原尺寸；填正数只会等比缩小，不会放大。</p></div>
+        </details>
+        <details class="guide-answer">
+          <summary>合成参数先改哪些？<span aria-hidden="true">+</span></summary>
+          <div class="guide-answer-body"><p>先选背景与零件，设置「生成数量」「每张零件数」，再按需要调整布局、旋转角度和缩放比例。</p><p>上下左右边距单位是 px。确认预览中的青色虚线区域有效，且零件能放入其中。</p></div>
+        </details>
+        <details class="guide-answer">
+          <summary>提交后没看到结果怎么办？<span aria-hidden="true">+</span></summary>
+          <div class="guide-answer-body"><p>到「任务中心」查看状态：排队中或生成中时继续等待；失败时查看该行错误信息。</p><p>Mask 和透明零件生成后，在对应步骤的验收区查看；数据集完成后点「查看生成结果」。结果页未更新时点「刷新」。</p></div>
+        </details>
+        <details class="guide-answer">
+          <summary>DXF 能直接转成 Mask 吗？<span aria-hidden="true">+</span></summary>
+          <div class="guide-answer-body"><p>目前不能。「DXF 文件」只保存原文件，不生成边缘图或 Mask。提取轮廓请使用 GEN 文件或已有边缘图。</p></div>
+        </details>
+        <p class="guide-upload-note">文件与文件夹均可批量上传；选择或拖入文件后即开始上传。</p>
+      </aside>
+    </div>
+    <el-dialog v-model="pictureOpen" :title="activePicture?.label || '素材图片'" width="min(1000px, calc(100vw - 32px))" class="guide-picture-dialog" align-center>
+      <div v-if="activePicture" class="guide-picture-stage" :class="{ 'is-transparent': activePicture.id === 'part' }"><img :src="activePicture.src" :alt="activePicture.alt" /></div>
+      <p v-if="activePicture" class="guide-picture-description">{{ activePicture.alt }}</p>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ArrowRight, CircleCheck, FolderOpened, InfoFilled } from '@element-plus/icons-vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import edgeImage from '../assets/guide/edge.webp'
+import maskImage from '../assets/guide/mask.webp'
+import textureImage from '../assets/guide/texture.webp'
+import partImage from '../assets/guide/part.webp'
+import backgroundImage from '../assets/guide/background.webp'
+import datasetImage from '../assets/guide/dataset.webp'
+import downloadImage from '../assets/guide/download.webp'
 
-const flowItems = [
-  { number: '01', title: '上传素材', output: '输入 / 背景 / 纹理' },
-  { number: '02', title: '提取 Mask', output: '验收后勾选' },
-  { number: '03', title: '透明零件', output: 'RGBA 预览' },
-  { number: '04', title: '合成与阅览', output: '图片 / 标签 / 信息' },
+const route = useRoute()
+const router = useRouter()
+const pictureOpen = ref(false)
+const activePicture = ref(null)
+function openPicture(picture) { activePicture.value = picture; pictureOpen.value = true }
+const pictures = {
+  edge: { id: 'edge', label: '边缘图', src: edgeImage, width: 409, height: 437, alt: '黑底白线的零件边缘图，外轮廓和四个孔位清晰可见。' },
+  mask: { id: 'mask', label: 'Mask', src: maskImage, width: 405, height: 434, alt: '提取后的 Mask：白色为零件实体，黑色为背景与孔洞。' },
+  texture: { id: 'texture', label: '纹理图', src: textureImage, width: 800, height: 600, alt: '浅色金属表面纹理，用于填充零件的实体区域。' },
+  part: { id: 'part', label: '透明零件', src: partImage, width: 405, height: 434, alt: '填入金属纹理的透明零件，外部与四个孔位保留透明。' },
+  background: { id: 'background', label: '背景图', src: backgroundImage, width: 1200, height: 879, alt: '深色工业台面背景，用于放置透明零件。' },
+  dataset: { id: 'dataset', label: '合成结果', src: datasetImage, width: 1600, height: 1172, alt: '实际生成的图片：浅色零件被放置在深色台面右下方，孔位透出背景。' },
+  download: { id: 'download', label: '选择「图片 + 标签」', src: downloadImage, width: 300, height: 215, alt: '结果页的批量下载菜单：全部图片、全部标签 TXT、图片 + 标签。' }
+}
+const entryOptions = [
+  { id: 'full', title: 'GEN / 边缘图', hint: '从提取轮廓开始', materials: 'GEN 或边缘图、纹理图、背景图', flowTitle: '完整生成流程' },
+  { id: 'mask', title: '已有 Mask', hint: '跳过轮廓提取', materials: '已有 Mask、纹理图、背景图', shortcut: '省去提取 Mask', flowTitle: '从已有 Mask 开始' },
+  { id: 'parts', title: '项目中已有零件', hint: '直接进入合成', materials: '项目内已生成的透明零件、背景图', shortcut: '省去前两步生成', flowTitle: '从已有透明零件开始' }
 ]
+function validEntry(value) { return entryOptions.some(option => option.id === value) ? value : 'full' }
+function instructionParts(text) { return text.split(/(「[^」]*」)/g).filter(Boolean) }
+const entry = ref(validEntry(route.query.start))
+const entryIndex = computed(() => entryOptions.findIndex(option => option.id === entry.value))
+const currentEntry = computed(() => entryOptions[entryIndex.value])
+const preparation = computed(() => ({
+  id: 'prepare', title: entry.value === 'parts' ? '进入项目，准备背景' : '建好项目，上传素材', location: '项目总览 → 素材管理',
+  visuals: entry.value === 'parts' ? [pictures.part, pictures.background] : [entry.value === 'mask' ? pictures.mask : pictures.edge, pictures.texture, pictures.background],
+  visualLabel: '本流程需要的素材图片',
+  lines: entry.value === 'parts'
+    ? ['选择已有透明零件的项目，点击「进入工作台」。', '在「素材管理」确认已有零件与背景；缺少背景时点击「上传素材」，类型选「背景图」。']
+    : ['在「项目总览」新建或选择项目，点击「进入工作台」。', `点击「上传素材」，按素材类型分别添加${entry.value === 'mask' ? '「已有 Mask」' : '「输入文件 · GEN / 边缘图」'}、纹理图和背景图。`]
+}))
+const processSteps = [
+  { id: 'mask', title: '提取 Mask', location: '01 提取 Mask', lines: ['选择输入文件与提取方式，点击「提交 Mask 提取」。', '任务完成后，在「Mask 验收」勾选轮廓完整、孔洞正确的结果，点击「进入第二步」。'], visuals: [pictures.edge, pictures.mask], visualLabel: '从边缘图提取为实体 Mask' },
+  { id: 'parts', title: '生成透明零件', location: '02 透明零件', lines: ['勾选 Mask、选择纹理图，点击「生成透明零件」。', '任务完成后，在「透明零件验收」勾选需要的结果，点击「进入第三步」。'], visuals: [pictures.mask, pictures.texture, pictures.part], formula: true, visualLabel: 'Mask 加纹理图，生成透明零件' },
+  { id: 'generate', title: '合成数据集', location: '03 合成数据', lines: ['勾选零件，选择背景、标签格式、布局和生成数量。', '确认可放置区域与生成前检查通过，点击「开始生成数据集」，页面会进入任务中心。'], note: '需要下载标签，请选 YOLO；COCO 暂无 JSON 下载入口。', visuals: [pictures.part, pictures.background, pictures.dataset], formula: true, visualLabel: '透明零件加背景图，生成合成结果' },
+  { id: 'download', title: '查看并下载结果', location: '任务中心 → 结果阅览', lines: ['任务显示「已完成」后，点击「查看生成结果」。', '确认「数据集批次」，点击「批量下载 → 图片 + 标签」；也可逐张查看图片、标签 TXT 和生成信息 TXT。'], visuals: [pictures.dataset, pictures.download], visualLabel: '合成图片与对应的批量下载菜单' }
+]
+const visibleSteps = computed(() => [preparation.value, ...processSteps.filter(step => (
+  entry.value === 'full' || (entry.value === 'mask' ? step.id !== 'mask' : !['mask', 'parts'].includes(step.id))
+))])
+function updateEntry() {
+  const query = { ...route.query }
+  if (entry.value === 'full') delete query.start
+  else query.start = entry.value
+  router.replace({ query })
+}
+watch(() => route.query.start, value => { entry.value = validEntry(value) })
 </script>
 
 <style scoped>
 .guide-page { max-width: 1320px; }
-.guide-overview { display: grid; grid-template-columns: minmax(230px, .8fr) minmax(0, 1.8fr); gap: 30px; align-items: center; margin-bottom: 32px; padding: 24px 0; border-block: 1px solid var(--studio-border); }
-.eyebrow, .step-kicker span { color: var(--studio-primary); font-size:16px; font-weight: 600; }
-.overview-copy h3 { margin: 6px 0 10px; font:600 26px/1.4 var(--studio-font); }
-.overview-copy p { margin: 0; color: var(--studio-muted); font-size:18px; line-height: 1.7; }
-.overview-flow { display: flex; align-items: center; gap: 12px; }
-.overview-node { flex: 1; min-width: 0; }
-.overview-node > span { display: block; margin-bottom: 10px; color: var(--studio-primary); font:18px var(--studio-font); }
-.overview-node strong { display: block; color: var(--studio-text); font-size:18px; }
-.overview-node small { display: block; margin-top: 6px; color: var(--studio-muted); font-size:16px; line-height: 1.6; }
-.overview-arrow { flex: 0 0 16px; color: #9a9586; }
-.guide-list { display: flex; flex-direction: column; gap: 28px; }
-.guide-step { display: grid; grid-template-columns: minmax(290px, .85fr) minmax(0, 1.15fr); gap: 32px; align-items: center; padding: 28px; border: 1px solid var(--studio-border); background: var(--studio-surface); border-radius: 4px; }
-.step-kicker { display: flex; align-items: center; gap: 12px; }
-.step-kicker em { font:18px var(--studio-font); color: #948975; }
-.step-copy h3 { margin: 9px 0 12px; font:600 30px/1.4 var(--studio-font); }
-.step-copy > p { margin: 0 0 18px; color: #475044; font-size:18px; line-height: 1.8; }
-.action-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
-.action-list li { display: grid; grid-template-columns: 32px 1fr; gap: 10px; color: var(--studio-muted); font-size:16px; line-height: 1.7; }
-.action-list b { color: #475044; font-weight: 600; }
-.step-result { display: flex; gap: 8px; align-items: flex-start; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--el-border-color-light); color: #4e785c; font-size:16px; line-height: 1.7; }
-.step-result .el-icon { margin-top: 3px; flex-shrink: 0; font-size:18px; }
-.guide-visual { position: relative; min-width: 0; padding: 24px 22px 38px; background: var(--studio-bg); border: 1px solid var(--el-border-color-light); }
-.mock-window { overflow: hidden; border: 1px solid #bbb4a3; background: #fffdf8; }
-.mock-titlebar { display: flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 10px; border-bottom: 1px solid #d5d1c5; background: #ede9de; color: #475044; font-size:16px; }
-.mock-titlebar i { width: 5px; height: 5px; border-radius: 50%; background: #aaa08c; }
-.mock-titlebar span { margin-left: 6px; }
-.mock-body { padding: 14px; }
-.mock-tabs { display: flex; gap: 6px; border-bottom: 1px solid #e2ded3; padding-bottom: 10px; }
-.mock-tabs span, .mode-chip { padding: 4px 6px; border: 1px solid #d5d1c5; color: #636c5f; font-size:16px; }
-.mock-tabs .selected, .mode-chip.selected { border-color: #a85b21; background: #f5ece1; color: #89481a; }
-.mock-upload { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px; border: 1px dashed #b7b2a4; }
-.mock-upload > div { min-width: 0; }
-.file-token { display: grid; flex: 0 0 34px; place-items: center; height: 34px; background: #252a30; color: #eee9dc; font:16px var(--studio-font); }
-.mock-upload strong, .mock-upload small { display: block; font-size:16px; line-height: 1.6; }
-.mock-upload strong { color: #475044; }
-.mock-upload small { margin-top: 3px; color: #636c5f; }
-.mock-window button { flex-shrink: 0; margin-left: auto; border: 0; border-radius: 2px; background: #a85b21; color: #fff; padding: 6px 8px; font-size:16px; }
-.mock-assets { display: flex; gap: 7px; margin-top: 14px; }
-.mock-assets span { flex: 1; padding: 8px 5px; background: #f1eee5; color: #636c5f; font-size:16px; text-align: center; }
-.callout { position: absolute; display: flex; align-items: center; gap: 5px; color: #636c5f; font-size:16px; white-space: nowrap; }
-.callout b { display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; background: #a85b21; color: #fff; font:16px var(--studio-font); }
-.callout-one { top: 10px; left: 10px; }
-.callout-two { top: 63px; right: 7px; }
-.callout-three { bottom: 8px; left: 50%; transform: translateX(-50%); }
-.mask-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.input-bar { flex: 1 1 100%; padding: 6px; border: 1px solid #d5d1c5; color: #636c5f; font-size:16px; }
-.mask-controls button { margin-left: auto; }
-.mask-review { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 14px; }
-.mask-tile { position: relative; height: 70px; border: 1px solid #d5d1c5; background: #fff; }
-.mask-tile.checked { border-color: #a85b21; }
-.mask-tile b, .piece-tile b { position: absolute; right: 4px; top: 4px; display: grid; place-items: center; width: 15px; height: 15px; border-radius: 2px; background: #a85b21; color: #fff; font-size:16px; }
-.mask-shape { position: absolute; display: block; background: #252a30; }
-.shape-a { width: 55%; height: 42%; left: 20%; top: 28%; border-radius: 42% 58% 46% 34%; box-shadow: inset -10px 0 #fff; }
-.shape-b { width: 60%; height: 58%; left: 18%; top: 24%; clip-path: polygon(0 0, 100% 8%, 82% 100%, 10% 78%); }
-.shape-c { width: 52%; height: 42%; left: 23%; top: 28%; border-radius: 50%; background: #a2a396; }
-.part-body { display: grid; grid-template-columns: 1fr 22px 1fr; gap: 10px; align-items: center; }
-.texture-swatch, .rgba-piece, .piece-tile { background: repeating-conic-gradient(#e2e1da 0% 25%, #fff 0% 50%) 50% / 14px 14px; }
-.texture-swatch { display: grid; place-items: center; height: 76px; background: #858c7c; color: #fff; font-size:16px; box-shadow: inset 0 -22px rgb(37 42 48 / 15%); }
-.conversion-arrow { color: #95856f; }
-.rgba-piece { position: relative; height: 76px; }
-.rgba-piece i, .piece-tile i { position: absolute; display: block; width: 57%; height: 48%; left: 21%; top: 25%; border-radius: 38% 58% 41% 47%; background: #8d9681; transform: rotate(-13deg); box-shadow: inset -9px -6px #68725e; }
-.part-options { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 3px; color: #636c5f; font-size:16px; }
-.part-options em { padding: 3px 6px; border: 1px solid #d1a47f; background: #f5ece1; color: #89481a; font-style: normal; }
-.part-review { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 5px; }
-.piece-tile { position: relative; height: 48px; border: 1px solid #d5d1c5; }
-.piece-tile.selected { border-color: #a85b21; }
-.piece-tile i { width: 39%; height: 46%; left: 30%; top: 26%; }
-.dataset-body { display: grid; grid-template-columns: 94px 1fr; gap: 10px; }
-.dataset-form { display: grid; align-content: start; gap: 7px; }
-.dataset-form span { padding: 6px; background: #f1eee5; color: #636c5f; font-size:16px; }
-.dataset-form button { margin: 0; padding: 7px 4px; font-size:16px; }
-.placement-demo { position: relative; height: 146px; background: #bdc3ac; border: 1px solid #9da98d; box-shadow: inset 0 44px #e2e5de; }
-.safe-area { position: absolute; inset: 17px 12px 20px; border: 2px dashed #0891b2; background: rgb(34 211 238 / 10%); }
-.safe-area i, .safe-area b, .safe-area em { position: absolute; display: block; background: #5e827a; transform: rotate(-13deg); }
-.safe-area i { width: 21px; height: 16px; left: 26%; top: 44%; }
-.safe-area b { width: 18px; height: 14px; left: 56%; top: 35%; background: #b98655; }
-.safe-area em { width: 16px; height: 18px; right: 14%; bottom: 20%; background: #7d9275; }
-.safe-area small { position: absolute; left: 4px; top: 4px; padding: 2px 4px; background: #087d96; color: #fff; font-size:16px; }
-.output-files { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 3px; color: #636c5f; font:16px var(--studio-font); }
-.output-image { position: relative; width: 38px; height: 25px; background: #bdc3ac; border: 1px solid #9da98d; box-shadow: inset 0 9px #e2e5de; }
-.output-image i { position: absolute; width: 9px; height: 7px; left: 14px; top: 11px; background: #5e827a; transform: rotate(-14deg); }
-.guide-note { display: flex; gap: 12px; align-items: flex-start; margin-top: 28px; padding: 18px 0; border-top: 1px solid var(--studio-border); color: var(--studio-muted); font-size:18px; line-height: 1.7; }
-.guide-note .el-icon { flex: 0 0 auto; margin-top: 3px; color: var(--studio-primary); font-size:20px; }
-@media (max-width: 1060px) { .guide-overview, .guide-step { grid-template-columns: minmax(0, 1fr); } .guide-visual { max-width: 620px; } .overview-flow { justify-content: space-between; } }
-@media (max-width: 620px) {
-  .guide-step { padding: 18px; gap: 24px; }
-  .overview-flow { display: grid; grid-template-columns: 1fr 18px 1fr; gap: 16px; }
-  .overview-arrow:nth-of-type(2) { display: none; }
-  .overview-arrow { align-self: center; }
-  .guide-visual { padding: 28px 8px 38px; }
-  .mock-body { padding: 10px; }
-  .callout-two { top: 64px; }
-  .dataset-body { grid-template-columns: 78px minmax(0, 1fr); }
-  .dataset-form span, .dataset-form button { padding: 6px 3px; }
-  .mock-upload { flex-wrap: wrap; }
-  .part-options button { margin-left: 0; }
+.guide-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
+.guide-header h1 { margin: 0 0 8px; color: var(--studio-text); font-size: 36px; font-weight: 600; line-height: 1.4; }
+.guide-header p { margin: 0; color: var(--studio-muted); font-size: 18px; line-height: 1.7; }
+.guide-start { display: inline-flex; align-items: center; justify-content: center; gap: 18px; min-height: 48px; flex-shrink: 0; padding: 10px 20px; border: 1px solid var(--studio-primary); border-radius: 4px; color: #fff; background: #8d4716; font-size: 18px; font-weight: 600; line-height: 1.5; text-decoration: none; transition: background-color 140ms ease, transform 100ms ease; }
+.guide-start:hover { background: #783b12; }
+.guide-start:active { transform: translateY(1px); }
+.guide-start span { font-size: 22px; }
+.guide-entry { min-width: 0; margin: 0; padding: 0; border: 0; }
+.guide-entry legend { margin-bottom: 12px; padding: 0; color: var(--studio-text); font-size: 20px; font-weight: 600; line-height: 1.5; }
+.guide-mobile-entry { display: none; }
+.guide-options { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); isolation: isolate; padding: 4px; border: 1px solid var(--studio-border); border-radius: 5px; background: #eeeadf; }
+.guide-option-indicator { position: absolute; inset: 4px auto 4px 4px; z-index: -1; width: calc((100% - 8px) / 3); border: 1px solid #c5a07d; border-radius: 3px; background: var(--studio-surface); transform: translateX(calc(var(--entry-index) * 100%)); transition: transform 180ms cubic-bezier(.22, 1, .36, 1); }
+.guide-option { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; min-height: 82px; padding: 13px 20px; color: var(--studio-muted); cursor: pointer; }
+.guide-option input { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; }
+.guide-option-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.guide-option strong { color: #475044; font-size: 18px; font-weight: 600; line-height: 1.5; }
+.guide-option-copy > span { font-size: 16px; line-height: 1.5; }
+.guide-option-check { flex-shrink: 0; width: 18px; color: #8d4716; font-size: 19px; font-weight: 600; }
+.guide-option.selected strong { color: #85461b; }
+.guide-option:has(input:focus-visible) { outline: 2px solid var(--studio-primary); outline-offset: -3px; border-radius: 3px; }
+.guide-preparation { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; margin: 16px 0 30px; color: var(--studio-muted); font-size: 16px; line-height: 1.7; }
+.guide-preparation strong { color: #475044; font-weight: 600; }
+.guide-shortcut { margin-left: auto; color: #80532f; }
+.guide-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 48px; align-items: start; }
+.guide-process { min-width: 0; }
+.guide-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid var(--studio-border); }
+.guide-section-heading h2, .guide-help > h2 { margin: 0; color: var(--studio-text); font-size: 22px; font-weight: 600; line-height: 1.5; }
+.guide-section-heading > span { flex-shrink: 0; color: var(--studio-muted); font-size: 16px; }
+.guide-flow { margin: 0; padding: 0; list-style: none; }
+.guide-step { display: flex; align-items: flex-start; gap: 18px; padding: 23px 0 25px; border-bottom: 1px solid var(--el-border-color-light); }
+.guide-step-number { display: grid; flex: 0 0 32px; min-height: 32px; place-items: center; margin-top: 1px; border: 1px solid #c5ab8b; border-radius: 50%; color: #8b4d20; font-size: 17px; font-weight: 600; line-height: 1; }
+.guide-step-copy { flex: 1; min-width: 0; }
+.guide-step-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 5px 14px; margin-bottom: 9px; }
+.guide-step h3 { margin: 0; color: var(--studio-text); font-size: 21px; font-weight: 600; line-height: 1.5; }
+.guide-step-location { color: #6c6d60; font-size: 15px; line-height: 1.6; }
+.guide-step p { margin: 0; color: #475044; font-size: 17px; line-height: 1.85; overflow-wrap: anywhere; }
+.guide-step p + p { margin-top: 4px; }
+.guide-control-name { white-space: nowrap; }
+.guide-step p.guide-step-note { margin-top: 7px; color: #80532f; font-size: 16px; line-height: 1.7; }
+.guide-visuals { display: grid; grid-template-columns: repeat(var(--visual-count), minmax(0, 1fr)); gap: 24px; max-width: 700px; margin-top: 18px; }
+.guide-visual { position: relative; min-width: 0; margin: 0; }
+.guide-photo { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 148px; padding: 10px; overflow: hidden; border: 1px solid #ded8cb; border-radius: 3px; color: #80532f; background: #fffdf8; cursor: zoom-in; transition: border-color 140ms ease, background-color 140ms ease; }
+.guide-photo:hover { border-color: #ad7a4e; background-color: #f8f2e8; }
+.guide-photo:focus-visible { outline: 2px solid var(--studio-primary); outline-offset: 3px; }
+.guide-photo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.guide-photo.is-transparent, .guide-picture-stage.is-transparent { background-color: #d8d4ca; background-image: conic-gradient(#b7b4ac 25%, transparent 0 50%, #b7b4ac 0 75%, transparent 0); background-size: 20px 20px; }
+.guide-photo.is-screen { padding: 0; }
+.guide-photo-zoom { position: absolute; right: 5px; bottom: 5px; display: grid; width: 23px; height: 23px; place-items: center; border-radius: 2px; background: #fffdf8ed; font: 18px/1 var(--studio-font); }
+.guide-visual figcaption { margin-top: 7px; color: #5f6255; font-size: 16px; line-height: 1.65; text-align: center; }
+.guide-visual-connector { position: absolute; z-index: 1; top: 61px; left: -21px; width: 18px; color: #8b4d20; font-size: 22px; line-height: 1; text-align: center; }
+.guide-picture-stage { display: flex; align-items: center; justify-content: center; min-height: 180px; padding: 16px; border: 1px solid var(--studio-border); border-radius: 3px; background: #f6f4ed; }
+.guide-picture-stage img { display: block; max-width: 100%; max-height: 68vh; object-fit: contain; }
+.guide-picture-description { margin: 14px 0 0; color: var(--studio-muted); font-size: 17px; line-height: 1.8; }
+.guide-finish { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; margin-top: 22px; color: var(--studio-muted); font-size: 16px; line-height: 1.7; }
+.guide-finish a { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; color: #8b4d20; text-decoration: none; font-weight: 600; }
+.guide-finish a:hover { text-decoration: underline; text-underline-offset: 5px; }
+.guide-help { position: sticky; top: 24px; min-width: 0; padding: 22px; border: 1px solid var(--studio-border); border-radius: 4px; background: var(--studio-surface); }
+.guide-help > h2 { margin-bottom: 12px; font-size: 20px; }
+.guide-answer { border-bottom: 1px solid var(--el-border-color-light); }
+.guide-answer summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 58px; padding: 12px 0; list-style: none; color: #475044; font-size: 17px; font-weight: 500; line-height: 1.65; cursor: pointer; }
+.guide-answer summary::-webkit-details-marker { display: none; }
+.guide-answer summary > span { color: #8b4d20; font-size: 24px; font-weight: 400; line-height: 1; transition: transform 160ms ease; }
+.guide-answer[open] summary { color: #8b4d20; }
+.guide-answer[open] summary > span { transform: rotate(45deg); }
+.guide-answer summary:focus-visible { outline: 2px solid var(--studio-primary); outline-offset: 3px; }
+.guide-answer-body { padding: 0 0 17px; color: var(--studio-muted); font-size: 16px; line-height: 1.8; overflow-wrap: anywhere; }
+.guide-answer[open] .guide-answer-body { animation: guide-answer-enter 160ms ease-out; }
+.guide-answer-body p { margin: 0; }
+.guide-answer-body p + p, .guide-answer-body dl + p { margin-top: 12px; }
+.guide-answer-body dl { margin: 0; }
+.guide-answer-body dl > div + div { margin-top: 8px; }
+.guide-answer-body dt { color: #475044; font-weight: 600; }
+.guide-answer-body dd { margin: 0; }
+.guide-upload-note { margin: 18px 0 0; color: var(--studio-muted); font-size: 16px; line-height: 1.8; }
+@keyframes guide-answer-enter { from { opacity: .4; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 1080px) { .guide-layout { grid-template-columns: minmax(0, 1fr) 285px; gap: 28px; } .guide-option { padding-inline: 15px; } .guide-step-heading { display: block; } .guide-step-location { display: block; margin-top: 4px; } .guide-help { padding: 18px; } }
+@media (max-width: 900px) { .guide-layout { grid-template-columns: minmax(0, 1fr); gap: 30px; } .guide-help { position: static; } .guide-step-heading { display: flex; } .guide-step-location { display: inline; margin-top: 0; } }
+@media (max-width: 600px) {
+  .guide-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 12px; margin-bottom: 25px; }
+  .guide-header > div { display: contents; }
+  .guide-header h1 { margin: 0; font-size: 28px; }
+  .guide-header p { grid-column: 1 / -1; grid-row: 2; font-size: 17px; }
+  .guide-start { grid-column: 2; grid-row: 1; gap: 8px; min-height: 44px; padding: 8px 12px; font-size: 16px; }
+  .guide-start span { font-size: 18px; }
+  .guide-entry legend { font-size: 19px; }
+  .guide-options { display: none; }
+  .guide-mobile-entry { display: block; width: 100%; min-width: 0; min-height: 52px; padding: 10px 28px 10px 12px; border: 1px solid #bda589; border-radius: 4px; color: #75421f; background: var(--studio-surface); font: 17px/1.6 var(--studio-font); }
+  .guide-mobile-entry:focus-visible { outline: 2px solid var(--studio-primary); outline-offset: 3px; }
+  .guide-preparation { display: block; margin-bottom: 25px; }
+  .guide-preparation strong { display: block; margin-bottom: 4px; }
+  .guide-shortcut { display: block; margin: 4px 0 0; }
+  .guide-section-heading h2 { font-size: 21px; }
+  .guide-step { gap: 12px; padding: 20px 0 22px; }
+  .guide-step-number { flex-basis: 28px; min-height: 28px; font-size: 16px; }
+  .guide-step-heading { display: block; margin-bottom: 8px; }
+  .guide-step h3 { font-size: 20px; }
+  .guide-step-location { display: block; margin-top: 4px; }
+  .guide-step p { font-size: 17px; line-height: 1.85; }
+  .guide-visuals { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px 22px; }
+  .guide-visuals.is-collection { grid-template-columns: repeat(var(--visual-count), minmax(0, 1fr)); gap: 10px; }
+  .guide-visuals.is-collection .guide-photo { height: 108px; }
+  .guide-photo { height: 126px; padding: 7px; }
+  .guide-visual figcaption { font-size: 16px; }
+  .guide-visuals.is-formula { row-gap: 30px; }
+  .guide-visual.is-output { grid-column: 1 / -1; justify-self: center; width: calc((100% - 22px) / 2); }
+  .guide-visual-connector { top: 52px; }
+  .guide-visual.is-output .guide-visual-connector { top: -27px; left: calc(50% - 9px); transform: rotate(90deg); }
+  .guide-finish { display: block; }
+  .guide-finish a { margin-top: 5px; }
+  .guide-help { padding: 18px; }
 }
+@media (prefers-reduced-motion: reduce) { .guide-start, .guide-option-indicator, .guide-answer summary > span, .guide-photo { transition: none; } .guide-answer-body { animation: none !important; } }
 </style>
